@@ -81,3 +81,9 @@ def draw_star(surface: pygame.Surface, center: Point, radius: float, filled: boo
         )
     color = config.STAR_ON_COLOR if filled else config.STAR_OFF_COLOR
     pygame.draw.polygon(surface, color, points)
+
+
+def format_time(seconds: float) -> str:
+    """75.4 seconds -> "1:15"."""
+    minutes, whole_seconds = divmod(int(seconds), 60)
+    return f"{minutes}:{whole_seconds:02d}"

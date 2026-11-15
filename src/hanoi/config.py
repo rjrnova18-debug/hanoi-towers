@@ -21,7 +21,7 @@ MAX_DISKS = 8
 
 BOARD_TOP = 90  # everything above is the score bar
 BOARD_BOTTOM = 455  # everything below is the button bar
-BASE_Y = 430  # the top edge of the wooden base the towers stand on
+BASE_Y = 430  # the top edge of the base the towers stand on
 BASE_HEIGHT = 12
 PEG_WIDTH = 10
 PEG_HEIGHT = 265
