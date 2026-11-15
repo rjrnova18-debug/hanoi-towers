@@ -4,11 +4,15 @@ import pygame
 import pytest
 
 from hanoi import config
+from hanoi.game.app import App
 from hanoi.game.board_view import tower_center_x
 from hanoi.game.screens.menu import MenuScreen
 from hanoi.game.screens.play import PlayScreen
+from hanoi.game.screens.win import WinScreen
 from hanoi.game.widgets import format_time, load_fonts
 from hanoi.logic.rules import Move
+from hanoi.logic.session import GameResult, GameSession
+from hanoi.logic.solver import recursive_solution
 from hanoi.storage import FileBackend, SaveData
 
 A, B, C = 0, 1, 2
@@ -24,12 +28,16 @@ class FakeApp:
         self.save = save
         self.menu_shown = False
         self.started_with: int | None = None
+        self.wins_announced = 0
 
     def show_menu(self) -> None:
         self.menu_shown = True
 
     def start_game(self, disk_count: int) -> None:
         self.started_with = disk_count
+
+    def show_win(self, session: GameSession) -> None:
+        self.wins_announced += 1
 
 
 @pytest.fixture
@@ -242,3 +250,78 @@ def test_every_screen_state_can_be_drawn(app):
 def test_format_time():
     assert format_time(0) == "0:00"
     assert format_time(75.9) == "1:15"
+
+
+# --- Winning -------------------------------------------------------------------------------
+
+
+def win_by_keys(screen):
+    """Solve the game by pressing the tower keys, letting each disk land."""
+    keys = [pygame.K_1, pygame.K_2, pygame.K_3]
+    for move in recursive_solution(screen.disk_count):
+        key(screen, keys[move.source])
+        key(screen, keys[move.target])
+        let_animations_finish(screen)
+
+
+def test_winning_announces_the_win_once_after_a_short_pause(app):
+    screen = PlayScreen(app, 3)
+
+    win_by_keys(screen)
+    for _ in range(120):
+        screen.update(1 / 60)
+
+    assert app.wins_announced == 1
+
+
+def a_win(disk_count=3, moves=7, assisted=False, stars=3):
+    return GameResult(disk_count, moves, seconds=20, assisted=assisted, stars=stars)
+
+
+def solved_board(disk_count):
+    return ((), (), tuple(range(disk_count, 0, -1)))
+
+
+def test_win_screen_buttons(app):
+    win = WinScreen(app, a_win(disk_count=4), solved_board(4), is_new_record=True)
+
+    key(win, pygame.K_n)
+    assert app.started_with == 5
+    key(win, pygame.K_RETURN)
+    assert app.started_with == 4
+    key(win, pygame.K_ESCAPE)
+    assert app.menu_shown
+
+
+def test_no_next_level_after_the_largest_game(app):
+    win = WinScreen(app, a_win(disk_count=config.MAX_DISKS), solved_board(8), is_new_record=True)
+
+    key(win, pygame.K_n)
+
+    assert "next" not in win.buttons
+    assert app.started_with is None
+
+
+@pytest.mark.parametrize(
+    "result",
+    [a_win(), a_win(moves=9, stars=2), a_win(assisted=True, stars=0)],
+)
+def test_win_screen_can_be_drawn(app, result):
+    app.save.submit(a_win())  # so a "best" line exists
+    surface = pygame.Surface((config.SCREEN_WIDTH, config.SCREEN_HEIGHT))
+
+    WinScreen(app, result, solved_board(3), is_new_record=False).draw(surface)
+
+
+def test_real_app_saves_the_record_and_opens_the_win_screen(tmp_path):
+    real_app = App(save=SaveData(FileBackend(tmp_path / "save.json")))
+    real_app.start_game(3)
+    session = real_app.screen.session
+    for move in recursive_solution(3):
+        session.make_move(move)
+
+    real_app.show_win(session)
+
+    assert isinstance(real_app.screen, WinScreen)
+    assert real_app.screen.is_new_record
+    assert real_app.save.best_record(3).moves == 7

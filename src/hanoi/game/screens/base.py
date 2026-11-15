@@ -10,6 +10,7 @@ from typing import Protocol
 import pygame
 
 from hanoi.game.widgets import Fonts
+from hanoi.logic.session import GameSession
 from hanoi.storage import SaveData
 
 
@@ -22,6 +23,8 @@ class AppServices(Protocol):
     def show_menu(self) -> None: ...
 
     def start_game(self, disk_count: int) -> None: ...
+
+    def show_win(self, session: GameSession) -> None: ...
 
 
 class Screen:

@@ -11,19 +11,22 @@ from hanoi import config
 from hanoi.game.screens.base import Screen
 from hanoi.game.screens.menu import MenuScreen
 from hanoi.game.screens.play import PlayScreen
+from hanoi.game.screens.win import WinScreen
 from hanoi.game.widgets import load_fonts
+from hanoi.logic.session import GameSession
 from hanoi.storage import FileBackend, SaveData
 
 
 class App:
-    def __init__(self) -> None:
+    def __init__(self, save: SaveData | None = None) -> None:
+        """`save` can be passed in (tests use a temporary file); by default it is the real one."""
         pygame.init()
         self.surface = pygame.display.set_mode(
             (config.SCREEN_WIDTH, config.SCREEN_HEIGHT), pygame.SCALED | pygame.RESIZABLE
         )
         pygame.display.set_caption(config.WINDOW_TITLE)
         self.fonts = load_fonts()
-        self.save = SaveData(FileBackend())
+        self.save = save or SaveData(FileBackend())
         self.screen: Screen = MenuScreen(self)
 
     # --- Switching screens (the screens call these) -----------------------------------
@@ -33,6 +36,14 @@ class App:
 
     def start_game(self, disk_count: int) -> None:
         self.screen = PlayScreen(self, disk_count)
+
+    def show_win(self, session: GameSession) -> None:
+        """Save the result if it is a record, then show the win screen."""
+        result = session.result()
+        if result is None:
+            return  # the game is not won: nothing to show
+        is_new_record = self.save.submit(result)
+        self.screen = WinScreen(self, result, session.towers.position(), is_new_record)
 
     # --- Main loop ---------------------------------------------------------------------
 

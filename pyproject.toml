@@ -17,3 +17,5 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]  # lets tests do `from hanoi.logic import rules`
+# Tests run without a screen (dummy video driver), so pygame can't use the GPU renderer.
+filterwarnings = ["ignore:no fast renderer available"]

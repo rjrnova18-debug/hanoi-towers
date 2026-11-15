@@ -39,6 +39,7 @@ class PlayScreen(Screen):
         self.held: HeldDisk | None = None
         self.flight: Flight | None = None
         self.shake: Shake | None = None
+        self.win_countdown = config.WIN_DELAY  # a short pause to see the solved board
         self.undo_button = Button("Undo (U)", (300, BUTTON_ROW_Y), key=pygame.K_u)
         self.restart_button = Button("Restart (R)", (480, BUTTON_ROW_Y), key=pygame.K_r)
         self.menu_button = Button("Menu (Esc)", (660, BUTTON_ROW_Y), key=pygame.K_ESCAPE)
@@ -146,6 +147,14 @@ class PlayScreen(Screen):
             self.shake.update(dt)
             if self.shake.done:
                 self.shake = None
+        if self.session.is_solved() and self.flight is None:
+            self._count_down_to_win_screen(dt)
+
+    def _count_down_to_win_screen(self, dt: float) -> None:
+        was_waiting = self.win_countdown > 0
+        self.win_countdown -= dt
+        if was_waiting and self.win_countdown <= 0:  # only once
+            self.app.show_win(self.session)
 
     # --- Drawing -------------------------------------------------------------------------
 
