@@ -1,13 +1,21 @@
 """Tests for the solving algorithms (logic/solver.py)."""
 
 import importlib.util
+import itertools
 import re
+from collections import deque
 from pathlib import Path
 
 import pytest
 
-from hanoi.logic.rules import Move, Towers, minimum_moves
-from hanoi.logic.solver import iterative_solution, recursive_solution, spare_tower
+from hanoi.logic.rules import GOAL_TOWER, Move, Position, Towers, minimum_moves
+from hanoi.logic.solver import (
+    iterative_solution,
+    next_best_move,
+    recursive_solution,
+    solve_from,
+    spare_tower,
+)
 
 A, B, C = 0, 1, 2
 DISK_COUNTS = range(1, 9)  # the game offers 3 to 8 disks; 1 and 2 are cheap edge cases
@@ -86,10 +94,94 @@ def test_three_disks_known_sequence():
 
 
 def test_recursive_solution_between_any_two_towers():
-    # The solver for "any position" (next step) needs to move small towers around.
+    # A tower can be moved between any two pegs, not only from A to C.
     assert recursive_solution(2, source=B, target=A) == [Move(B, C), Move(B, A), Move(C, A)]
 
 
 @pytest.mark.parametrize(("first", "second", "spare"), [(A, B, C), (A, C, B), (C, B, A)])
 def test_spare_tower_is_the_third_one(first, second, spare):
     assert spare_tower(first, second) == spare
+
+
+# --- Solving from any position -------------------------------------------------------
+#
+# The judge: a breadth-first search (BFS) that explores EVERY legal position and measures
+# its true distance to the goal. It is slow (3^n positions) but obviously correct, so it
+# is a good referee for the fast solver on small boards.
+
+
+def every_legal_position(disk_count: int) -> list[Towers]:
+    """All 3^n boards: each disk can sit on any tower, always largest at the bottom."""
+    boards = []
+    for towers_of_disks in itertools.product(range(3), repeat=disk_count):
+        stacks = [[], [], []]
+        for disk in range(disk_count, 0, -1):  # place the largest disks first
+            stacks[towers_of_disks[disk - 1]].append(disk)
+        boards.append(Towers(stacks))
+    return boards
+
+
+def legal_moves(towers: Towers) -> list[Move]:
+    all_moves = [Move(source, target) for source in range(3) for target in range(3)]
+    return [move for move in all_moves if towers.can_move(move)]
+
+
+def distances_to_goal(disk_count: int) -> dict[Position, int]:
+    """BFS from the solved board. Every move can be undone, so distances work both ways."""
+    goal = Towers([[], [], list(range(disk_count, 0, -1))])
+    distances = {goal.position(): 0}
+    queue = deque([goal])
+    while queue:
+        board = queue.popleft()
+        for move in legal_moves(board):
+            neighbour = board.copy()
+            neighbour.move(move)
+            if neighbour.position() not in distances:
+                distances[neighbour.position()] = distances[board.position()] + 1
+                queue.append(neighbour)
+    return distances
+
+
+@pytest.mark.parametrize("disk_count", range(1, 6))
+def test_solve_from_is_shortest_from_every_position(disk_count):
+    distances = distances_to_goal(disk_count)
+
+    for board in every_legal_position(disk_count):
+        moves = solve_from(board)
+
+        finished = board.copy()
+        for move in moves:
+            finished.move(move)  # fails here if any move is illegal
+        assert finished.is_solved()
+        assert len(moves) == distances[board.position()], f"not shortest from {board.position()}"
+
+
+def test_solve_from_a_new_game_is_the_classic_solution():
+    assert solve_from(Towers.new_game(4)) == recursive_solution(4)
+
+
+def test_solve_from_does_not_change_the_board_it_receives():
+    board = Towers([[3], [2], [1]])
+
+    solve_from(board)
+
+    assert board.position() == ((3,), (2,), (1,))
+
+
+def test_solve_from_a_solved_board_needs_no_moves():
+    assert solve_from(Towers([[], [], [3, 2, 1]])) == []
+
+
+def test_solve_from_can_aim_at_any_tower():
+    assert solve_from(Towers.new_game(3), target=B) == recursive_solution(3, source=A, target=B)
+
+
+def test_next_best_move_after_a_mistake():
+    # The player moved disk 1 to B (the best first move for 3 disks is A -> C).
+    board = Towers([[3, 2], [1], []])
+
+    assert next_best_move(board) == Move(B, C)
+
+
+def test_next_best_move_is_none_when_solved():
+    assert next_best_move(Towers([[], [], [2, 1]]), target=GOAL_TOWER) is None

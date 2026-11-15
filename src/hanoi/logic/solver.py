@@ -1,7 +1,9 @@
 """Algorithms that solve the puzzle. They return moves; they never draw anything.
 
-- recursive_solution: the classic textbook solution.
+- recursive_solution: the classic textbook solution, from a new game.
 - iterative_solution: the loop-based idea from the original script, with its bug fixed.
+- solve_from / next_best_move: the shortest way to finish from ANY position
+  (this is what powers the Hint and Solve buttons).
 """
 
 from hanoi.logic.rules import GOAL_TOWER, START_TOWER, Move, Towers, minimum_moves
@@ -66,3 +68,46 @@ def _legal_move_between(towers: Towers, first: int, second: int) -> Move:
     # same tower twice ("move disk 2 from B to B"). Asking the rules can't go wrong.
     forward = Move(first, second)
     return forward if towers.can_move(forward) else forward.reversed()
+
+
+# --- Solving from any position (Hint and Solve buttons) -----------------------------
+
+
+def solve_from(towers: Towers, target: int = GOAL_TOWER) -> list[Move]:
+    """Shortest list of moves from the current position to every disk on `target`.
+
+    Works from any legal position, not only from a new game. The board passed in is
+    not changed: the solver plays on a copy.
+    """
+    board = towers.copy()
+    moves: list[Move] = []
+    _gather(board, board.disk_count, target, moves)
+    return moves
+
+
+def next_best_move(towers: Towers, target: int = GOAL_TOWER) -> Move | None:
+    """The first move of the shortest solution, or None if the game is already solved."""
+    moves = solve_from(towers, target)
+    return moves[0] if moves else None
+
+
+def _gather(board: Towers, largest: int, target: int, moves: list[Move]) -> None:
+    """Bring disks 1..largest onto `target`, wherever they are now.
+
+    Look only at the largest disk: if it is not on the target yet, the smaller disks must
+    first get out of the way (onto the spare tower), then the largest disk moves.
+    Either way, the smaller disks end by gathering on top of it.
+    """
+    if largest == 0:
+        return
+    current = board.tower_of(largest)
+    if current != target:
+        spare = spare_tower(current, target)
+        _gather(board, largest - 1, spare, moves)  # clear the way
+        _play(board, Move(current, target), moves)  # move the largest disk
+    _gather(board, largest - 1, target, moves)  # smaller disks on top of it
+
+
+def _play(board: Towers, move: Move, moves: list[Move]) -> None:
+    board.move(move)
+    moves.append(move)
