@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# pygbag output (the web build is made by GitHub Actions, never committed)
+build/
+
+# Editor
+.vscode/
+
+# Local working notes (not part of the project)
+CLAUDE.md
+BITACORA.md
+GLOSSARY.md
