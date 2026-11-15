@@ -1,5 +1,7 @@
 # Tower of Hanoi
 
+[![CI](https://github.com/rjrnova18-debug/hanoi-towers/actions/workflows/ci.yml/badge.svg)](https://github.com/rjrnova18-debug/hanoi-towers/actions/workflows/ci.yml)
+
 > 🚧 Work in progress.
 
 A Tower of Hanoi game made with **pygame-ce**. It gives hints and solves the puzzle from **any** position, and it will be playable in the browser.
