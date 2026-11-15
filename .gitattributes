@@ -1,0 +1,7 @@
+# Store and check out every text file with LF line endings (the Linux/macOS style),
+# so Windows and the Linux CI runner see exactly the same bytes.
+* text=auto eol=lf
+
+# Binary files: never touch their bytes.
+*.ogg binary
+*.png binary
