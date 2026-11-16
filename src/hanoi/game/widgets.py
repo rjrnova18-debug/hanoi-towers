@@ -119,10 +119,18 @@ class Button:
         return False
 
     def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
+        """A key seen from the front: a darker side below it, which the top covers
+        when the button is held down, so it looks pushed in.
+        """
         hovered = self.rect.collidepoint(pygame.mouse.get_pos())
+        pressed = hovered and pygame.mouse.get_pressed()[0]
         color = config.BUTTON_HOVER_COLOR if hovered else config.BUTTON_COLOR
-        pygame.draw.rect(surface, color, self.rect, border_radius=12)
-        draw_text(surface, self.label, font, self.rect.center)
+
+        side = self.rect.move(0, config.BUTTON_DEPTH)
+        pygame.draw.rect(surface, blend(config.BUTTON_COLOR, BLACK, 0.45), side, border_radius=12)
+        top = self.rect.move(0, config.BUTTON_DEPTH if pressed else 0)
+        pygame.draw.rect(surface, color, top, border_radius=12)
+        draw_text(surface, self.label, font, top.center)
 
 
 def draw_star(surface: pygame.Surface, center: Point, radius: float, filled: bool) -> None:

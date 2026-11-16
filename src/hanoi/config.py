@@ -58,6 +58,7 @@ STAR_ON_COLOR = (254, 202, 87)
 STAR_OFF_COLOR = (60, 64, 85)
 BUTTON_COLOR = (50, 54, 76)
 BUTTON_HOVER_COLOR = (66, 71, 99)
+BUTTON_DEPTH = 4  # pixels of the darker side under a button (it looks like a key)
 HINT_COLOR = (240, 242, 255)  # white: it must stand out from every disk color
 LEGAL_TARGET_COLOR = (110, 231, 183)  # soft green glow on towers that accept the held disk
 LEGAL_TARGET_ALPHA = 45

@@ -22,12 +22,21 @@ from hanoi.game.board_view import (
     tower_at,
 )
 from hanoi.game.screens.base import AppServices, Screen
-from hanoi.game.widgets import Button, button_row_centers, draw_background, draw_text, format_time
+from hanoi.game.widgets import (
+    WHITE,
+    Button,
+    blend,
+    button_row_centers,
+    draw_background,
+    draw_text,
+    format_time,
+)
 from hanoi.logic.rules import TOWER_NAMES, Move, minimum_moves
 from hanoi.logic.session import GameSession
 
 TOWER_KEYS = {pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2}
 BUTTON_ROW_Y = 500
+SCORE_BAR_HEIGHT = 76
 
 
 @dataclass
@@ -302,7 +311,10 @@ class PlayScreen(Screen):
     def _draw_score_bar(self, surface: pygame.Surface) -> None:
         fonts = self.app.fonts
         muted = config.MUTED_TEXT_COLOR
-        pygame.draw.rect(surface, config.PANEL_COLOR, (0, 0, config.SCREEN_WIDTH, 76))
+        bar = pygame.Rect(0, 0, config.SCREEN_WIDTH, SCORE_BAR_HEIGHT)
+        pygame.draw.rect(surface, config.PANEL_COLOR, bar)
+        edge_color = blend(config.PANEL_COLOR, WHITE, 0.08)  # a thin line separates bar and board
+        pygame.draw.line(surface, edge_color, bar.bottomleft, bar.bottomright)
 
         draw_text(surface, f"{self.disk_count} disks", fonts.normal, (110, 28))
         if self.session.assisted:
