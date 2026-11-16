@@ -59,6 +59,8 @@ STAR_OFF_COLOR = (60, 64, 85)
 BUTTON_COLOR = (50, 54, 76)
 BUTTON_HOVER_COLOR = (66, 71, 99)
 HINT_COLOR = (240, 242, 255)  # white: it must stand out from every disk color
+LEGAL_TARGET_COLOR = (110, 231, 183)  # soft green glow on towers that accept the held disk
+LEGAL_TARGET_ALPHA = 45
 
 # One color per disk size, smallest first: a rainbow from red to pink.
 DISK_COLORS = [
@@ -77,6 +79,8 @@ DISK_COLORS = [
 FLIGHT_SPEED = 2200  # pixels per second for a disk flying to its tower
 SHAKE_DURATION = 0.35  # seconds a disk shakes after an illegal move
 SHAKE_AMPLITUDE = 9  # pixels
+BOUNCE_DURATION = 0.22  # seconds of the little hop when a disk lands
+BOUNCE_HEIGHT = 7  # pixels
 DRAG_THRESHOLD = 6  # pixels the pointer must travel before a click becomes a drag
 WIN_DELAY = 0.5  # seconds to admire the solved board before the win screen
 

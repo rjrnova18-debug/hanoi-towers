@@ -11,18 +11,19 @@ from dataclasses import dataclass
 import pygame
 
 from hanoi import config
-from hanoi.game.animations import Flight, Point, Shake
+from hanoi.game.animations import Bounce, Flight, Point, Shake
 from hanoi.game.board_view import (
     draw_board,
     draw_disk,
     draw_hint,
+    draw_target_glow,
     lifted_center,
     resting_center,
     tower_at,
 )
 from hanoi.game.screens.base import AppServices, Screen
 from hanoi.game.widgets import Button, button_row_centers, draw_background, draw_text, format_time
-from hanoi.logic.rules import Move, minimum_moves
+from hanoi.logic.rules import TOWER_NAMES, Move, minimum_moves
 from hanoi.logic.session import GameSession
 
 TOWER_KEYS = {pygame.K_1: 0, pygame.K_2: 1, pygame.K_3: 2}
@@ -46,6 +47,7 @@ class PlayScreen(Screen):
         self.held: HeldDisk | None = None
         self.flight: Flight | None = None
         self.shake: Shake | None = None
+        self.bounce: Bounce | None = None
         self.hint: Move | None = None  # the suggested move, shown until the board changes
         self.moves_to_autoplay: list[Move] = []  # filled by Solve; played one per flight
         self.autoplay_pause = 0.0
@@ -183,6 +185,13 @@ class PlayScreen(Screen):
         self.held = None
         self.hint = self.session.hint()
 
+    def legal_targets(self) -> list[int]:
+        """Towers where the held disk is allowed to go (they glow while it is held)."""
+        if self.held is None:
+            return []
+        moves = [Move(self.held.from_tower, tower) for tower in range(len(TOWER_NAMES))]
+        return [move.target for move in moves if self.session.towers.can_move(move)]
+
     def _start_solving(self) -> None:
         """Ask the solver for every remaining move; update() plays them one by one."""
         self.held = None
@@ -215,15 +224,24 @@ class PlayScreen(Screen):
         if self.flight is not None:
             self.flight.update(dt)
             if self.flight.done:
-                self.flight = None
+                self._land(self.flight.disk)
         if self.shake is not None:
             self.shake.update(dt)
             if self.shake.done:
                 self.shake = None
+        if self.bounce is not None:
+            self.bounce.update(dt)
+            if self.bounce.done:
+                self.bounce = None
         if self.is_solving and self.flight is None:
             self._play_next_autoplay_move(dt)
         if self.session.is_solved() and self.flight is None:
             self._count_down_to_win_screen(dt)
+
+    def _land(self, disk: int) -> None:
+        self.flight = None
+        if not self.is_solving:  # the solver is fast: skip the hop to keep its rhythm
+            self.bounce = Bounce(disk)
 
     def _count_down_to_win_screen(self, dt: float) -> None:
         was_waiting = self.win_countdown > 0
@@ -237,6 +255,9 @@ class PlayScreen(Screen):
         position = self.session.towers.position()
         draw_background(surface)
         self._draw_score_bar(surface)
+        if self.held is not None:
+            for tower in self.legal_targets():
+                draw_target_glow(surface, tower)
         draw_board(
             surface,
             position,
@@ -260,6 +281,8 @@ class PlayScreen(Screen):
             return self.held.disk
         if self.shake is not None:
             return self.shake.disk
+        if self.bounce is not None:
+            return self.bounce.disk
         return None
 
     def _draw_moving_disk(self, surface: pygame.Surface) -> None:
@@ -272,6 +295,9 @@ class PlayScreen(Screen):
             x, y = resting_center(self.session.towers.position(), self.shake.disk, self.disk_count)
             center = (x + self.shake.offset_x(), y)
             draw_disk(surface, self.shake.disk, self.disk_count, center, config.ERROR_COLOR)
+        elif self.bounce is not None:
+            x, y = resting_center(self.session.towers.position(), self.bounce.disk, self.disk_count)
+            draw_disk(surface, self.bounce.disk, self.disk_count, (x, y + self.bounce.offset_y()))
 
     def _draw_score_bar(self, surface: pygame.Surface) -> None:
         fonts = self.app.fonts

@@ -1,4 +1,5 @@
-"""Small animations: a disk flying to its tower and a disk shaking after a mistake.
+"""Small animations: a disk flying to its tower, bouncing when it lands,
+and shaking after a mistake.
 
 Each animation only computes WHERE the disk is at a given moment.
 The screen calls update(dt) every frame and draws the disk at position().
@@ -46,7 +47,28 @@ class Flight:
         return self.elapsed >= self.duration
 
     def position(self) -> Point:
-        return point_along_path(self.waypoints, self.elapsed / self.duration)
+        progress = self.elapsed / self.duration
+        return point_along_path(self.waypoints, ease_in_out(progress))
+
+
+@dataclass
+class Bounce:
+    """A disk that just landed hops up a little and settles, like a real object."""
+
+    disk: int
+    elapsed: float = 0.0
+
+    def update(self, dt: float) -> None:
+        self.elapsed = min(self.elapsed + dt, config.BOUNCE_DURATION)
+
+    @property
+    def done(self) -> bool:
+        return self.elapsed >= config.BOUNCE_DURATION
+
+    def offset_y(self) -> float:
+        """Vertical offset in pixels: one hop up (negative y is up on screen), then rest."""
+        progress = self.elapsed / config.BOUNCE_DURATION
+        return -config.BOUNCE_HEIGHT * math.sin(progress * math.pi) * (1 - progress)
 
 
 @dataclass
@@ -68,6 +90,14 @@ class Shake:
         progress = self.elapsed / config.SHAKE_DURATION
         wiggles = 4
         return config.SHAKE_AMPLITUDE * math.sin(progress * wiggles * 2 * math.pi) * (1 - progress)
+
+
+def ease_in_out(progress: float) -> float:
+    """Start slow, speed up, end slow ("smoothstep"). 0 -> 0, 0.5 -> 0.5, 1 -> 1.
+
+    Real objects don't jump to full speed and stop dead; easing makes motion feel natural.
+    """
+    return progress * progress * (3 - 2 * progress)
 
 
 def path_length(waypoints: list[Point]) -> float:

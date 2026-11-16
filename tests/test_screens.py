@@ -228,6 +228,42 @@ def test_escape_puts_the_disk_down_first_then_opens_the_menu(app):
     assert app.menu_shown
 
 
+# --- Feel --------------------------------------------------------------------------------
+
+
+def test_legal_towers_light_up_while_holding_a_disk(app):
+    screen = PlayScreen(app, 3)
+    assert screen.legal_targets() == []  # holding nothing
+
+    key(screen, pygame.K_1)  # hold disk 1: it fits anywhere
+
+    assert screen.legal_targets() == [B, C]
+
+
+def test_only_towers_with_room_light_up(app):
+    screen = PlayScreen(app, 3)
+    screen.session.make_move(Move(A, C))  # disk 1 on C
+
+    key(screen, pygame.K_1)  # hold disk 2
+
+    assert screen.legal_targets() == [B]
+    assert not screen.session.assisted  # showing the rules is not help
+
+
+def test_a_landing_disk_bounces_then_rests(app):
+    screen = PlayScreen(app, 3)
+    key(screen, pygame.K_1)
+    key(screen, pygame.K_3)
+    for _ in range(120):
+        screen.update(1 / 120)
+        if screen.flight is None:
+            break
+
+    assert screen.bounce is not None
+    let_animations_finish(screen)
+    assert screen.bounce is None
+
+
 # --- Hint --------------------------------------------------------------------------------
 
 

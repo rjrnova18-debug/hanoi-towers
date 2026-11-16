@@ -208,6 +208,13 @@ def draw_hint(surface: pygame.Surface, move: Move, position: Position, disk_coun
     pygame.draw.polygon(surface, config.HINT_COLOR, arrow_head)
 
 
+def draw_target_glow(surface: pygame.Surface, tower: int) -> None:
+    """A soft column of light behind a tower: "the disk you hold can go here"."""
+    glow = pygame.Rect(0, 0, 44, config.PEG_HEIGHT + 24)
+    glow.midbottom = (tower_center_x(tower), config.BASE_Y + 6)
+    surface.blit(_glow(glow.size, config.LEGAL_TARGET_COLOR, config.LEGAL_TARGET_ALPHA), glow)
+
+
 def _draw_tower_label(surface: pygame.Surface, tower: int, font: pygame.font.Font) -> None:
     # The label shows the key that selects this tower (1, 2, 3).
     label = font.render(str(tower + 1), True, config.MUTED_TEXT_COLOR)
