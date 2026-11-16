@@ -24,6 +24,11 @@ pytest
 ruff check . && ruff format --check .
 ```
 
+## Credits
+
+- **Font:** [Fredoka](https://fonts.google.com/specimen/Fredoka) by The Fredoka Project Authors, under the [SIL Open Font License](src/assets/fonts/OFL.txt).
+- **Sound effects:** from [Pixabay](https://pixabay.com/sound-effects/), under the [Pixabay Content License](https://pixabay.com/service/license-summary/). Trimmed and converted to OGG for this game.
+
 ## License
 
-[MIT](LICENSE)
+The code is [MIT](LICENSE). The font and the sound effects keep their own licenses (see Credits).

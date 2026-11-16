@@ -9,6 +9,7 @@ from typing import Protocol
 
 import pygame
 
+from hanoi.game.audio import Audio
 from hanoi.game.widgets import Fonts
 from hanoi.logic.session import GameSession
 from hanoi.storage import SaveData
@@ -19,6 +20,7 @@ class AppServices(Protocol):
 
     fonts: Fonts
     save: SaveData
+    audio: Audio
 
     def show_menu(self) -> None: ...
 

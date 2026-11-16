@@ -12,6 +12,7 @@ WINDOW_TITLE = "Tower of Hanoi"
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 FONT_REGULAR = ASSETS_DIR / "fonts" / "Fredoka-Medium.ttf"
 FONT_BOLD = ASSETS_DIR / "fonts" / "Fredoka-SemiBold.ttf"
+SOUNDS_DIR = ASSETS_DIR / "sounds"
 
 # Logical resolution. pygame.SCALED stretches it to fit any window or phone screen,
 # so the drawing code can always assume this exact size.
@@ -107,3 +108,10 @@ CONFETTI_AIR_DRAG = 1.5  # how quickly the sideways speed fades
 # are played faster. Speed = FLIGHT_SPEED x (1 + SOLVE_SPEEDUP_PER_DISK x extra disks).
 SOLVE_SPEEDUP_PER_DISK = 0.5  # 3 disks: normal speed ... 8 disks: 3.5 times faster
 SOLVE_PAUSE = 0.06  # seconds between two moves of the solver
+
+# --- Sound ---------------------------------------------------------------------------
+
+# Volume of each sound effect: 0 = silent, 1 = as loud as the file.
+# The files are not equally loud, so these numbers balance them. The frequent sounds
+# (pick, drop) stay soft; the win jingle is the loudest.
+SOUND_VOLUMES = {"pick": 0.3, "drop": 0.85, "error": 0.85, "win": 0.7}

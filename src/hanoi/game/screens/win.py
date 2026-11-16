@@ -1,6 +1,6 @@
 """The win screen: stars, moves, time and records, over the solved board.
 
-Earned stars pop in one by one, and an unassisted win throws confetti.
+Earned stars pop in one by one, and an unassisted win throws confetti and plays a jingle.
 """
 
 import math
@@ -10,6 +10,7 @@ import pygame
 
 from hanoi import config
 from hanoi.game.animations import ConfettiPiece, confetti_burst, pop_scale
+from hanoi.game.audio import Sound
 from hanoi.game.board_view import draw_board
 from hanoi.game.screens.base import AppServices, Screen
 from hanoi.game.widgets import (
@@ -41,10 +42,11 @@ class WinScreen(Screen):
         self.has_next_level = result.disk_count < config.MAX_DISKS
         self.buttons = self._make_buttons()
         self.elapsed = 0.0  # seconds since the screen appeared: drives the star animation
-        # Confetti celebrates a win earned without help.
-        self.confetti: list[ConfettiPiece] = (
-            [] if result.assisted else confetti_burst(random.Random(), config.DISK_COLORS)
-        )
+        # The celebration (confetti and jingle) is only for a win earned without help.
+        self.confetti: list[ConfettiPiece] = []
+        if not result.assisted:
+            self.confetti = confetti_burst(random.Random(), config.DISK_COLORS)
+            app.audio.play(Sound.WIN)
 
     def _make_buttons(self) -> dict[str, Button]:
         # (name, label, key). "next" only exists below the maximum number of disks.

@@ -9,6 +9,7 @@ import asyncio
 import pygame
 
 from hanoi import config
+from hanoi.game.audio import Audio
 from hanoi.game.screens.base import Screen
 from hanoi.game.screens.menu import MenuScreen
 from hanoi.game.screens.play import PlayScreen
@@ -28,6 +29,7 @@ class App:
         pygame.display.set_caption(config.WINDOW_TITLE)
         self.fonts = load_fonts()
         self.save = save or SaveData(FileBackend())
+        self.audio = Audio()
         self.screen: Screen = MenuScreen(self)
         self.running = True
         self.fading_frame: pygame.Surface | None = None  # last frame of the previous screen

@@ -12,6 +12,7 @@ import pygame
 
 from hanoi import config
 from hanoi.game.animations import Bounce, Flight, Point, Shake
+from hanoi.game.audio import Sound
 from hanoi.game.board_view import (
     draw_board,
     draw_disk,
@@ -163,6 +164,7 @@ class PlayScreen(Screen):
         disk = self.session.towers.top_disk(tower)
         if disk is not None and not self.session.is_solved():
             self.held = HeldDisk(disk, tower)
+            self.app.audio.play(Sound.PICK)
 
     def drop_on(self, tower: int | None) -> None:
         """Try to move the held disk onto `tower`. None or its own tower puts it back."""
@@ -179,6 +181,7 @@ class PlayScreen(Screen):
             self._fly(held.disk, start)  # to its new tower
         else:
             self.shake = Shake(held.disk)  # illegal: it snaps back and shakes
+            self.app.audio.play(Sound.ERROR)
 
     def _undo(self) -> None:
         self.held = None
@@ -248,7 +251,9 @@ class PlayScreen(Screen):
             self._count_down_to_win_screen(dt)
 
     def _land(self, disk: int) -> None:
+        """Every flight ends here: a move, a disk put back, an undo or a solver move."""
         self.flight = None
+        self.app.audio.play(Sound.DROP)
         if not self.is_solving:  # the solver is fast: skip the hop to keep its rhythm
             self.bounce = Bounce(disk)
 

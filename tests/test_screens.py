@@ -5,6 +5,7 @@ import pytest
 
 from hanoi import config
 from hanoi.game.app import App
+from hanoi.game.audio import Sound
 from hanoi.game.board_view import tower_center_x
 from hanoi.game.screens.menu import DemoBoard, MenuScreen
 from hanoi.game.screens.play import PlayScreen
@@ -19,6 +20,16 @@ A, B, C = 0, 1, 2
 BOARD_Y = 300  # any height inside the board area
 
 
+class FakeAudio:
+    """Stands in for the real Audio: writes down the sounds instead of playing them."""
+
+    def __init__(self) -> None:
+        self.played: list[Sound] = []
+
+    def play(self, sound: Sound) -> None:
+        self.played.append(sound)
+
+
 class FakeApp:
     """Stands in for the real App: records which screen the game asked for."""
 
@@ -26,6 +37,7 @@ class FakeApp:
         pygame.init()  # with the dummy drivers from conftest.py: no real window opens
         self.fonts = load_fonts()
         self.save = save
+        self.audio = FakeAudio()
         self.menu_shown = False
         self.started_with: int | None = None
         self.wins_announced = 0
@@ -281,6 +293,40 @@ def test_a_landing_disk_bounces_then_rests(app):
     assert screen.bounce is None
 
 
+# --- Sounds --------------------------------------------------------------------------------
+
+
+def test_a_move_sounds_like_pick_then_drop_on_landing(app):
+    screen = PlayScreen(app, 3)
+
+    key(screen, pygame.K_1)
+    assert app.audio.played == [Sound.PICK]
+
+    key(screen, pygame.K_3)
+    assert app.audio.played == [Sound.PICK]  # still flying: no drop yet
+    let_animations_finish(screen)
+    assert app.audio.played == [Sound.PICK, Sound.DROP]
+
+
+def test_an_illegal_move_sounds_the_error(app):
+    screen = PlayScreen(app, 3)
+    screen.session.make_move(Move(A, C))
+
+    click_tower(screen, A)
+    click_tower(screen, C)  # disk 2 can't go on disk 1
+
+    assert app.audio.played == [Sound.PICK, Sound.ERROR]
+
+
+def test_every_solver_move_lands_with_a_drop(app):
+    screen = PlayScreen(app, 3)
+
+    key(screen, pygame.K_s)
+    run_frames(screen, seconds=10)
+
+    assert app.audio.played == [Sound.DROP] * 7
+
+
 # --- Hint --------------------------------------------------------------------------------
 
 
@@ -470,6 +516,14 @@ def test_only_a_win_without_help_throws_confetti(app):
 
     assert earned.confetti
     assert not helped.confetti
+
+
+def test_only_a_win_without_help_plays_the_jingle(app):
+    WinScreen(app, a_win(assisted=True, stars=0), solved_board(3), is_new_record=False)
+    assert app.audio.played == []
+
+    WinScreen(app, a_win(), solved_board(3), is_new_record=True)
+    assert app.audio.played == [Sound.WIN]
 
 
 def test_confetti_is_cleaned_up_once_it_falls_off_screen(app):
