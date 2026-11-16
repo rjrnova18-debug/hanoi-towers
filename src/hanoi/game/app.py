@@ -18,7 +18,7 @@ from hanoi.game.screens.play import PlayScreen
 from hanoi.game.screens.win import WinScreen
 from hanoi.game.widgets import Button, draw_speaker, load_fonts
 from hanoi.logic.session import GameSession
-from hanoi.storage import FileBackend, SaveData
+from hanoi.storage import SaveData, default_backend
 
 SOUND_BUTTON_CENTER = (config.SCREEN_WIDTH - 28, 26)  # the top-right corner
 
@@ -32,7 +32,7 @@ class App:
         )
         pygame.display.set_caption(config.WINDOW_TITLE)
         self.fonts = load_fonts()
-        self.save = save or SaveData(FileBackend())
+        self.save = save or SaveData(default_backend())
         self.audio = Audio(muted=self.save.muted)  # starts the way the player left it
         self.sound_button = Button("", SOUND_BUTTON_CENTER, width=40, height=34, key=pygame.K_m)
         self.screen: Screen = MenuScreen(self)

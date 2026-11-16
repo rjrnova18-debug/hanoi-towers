@@ -4,10 +4,11 @@ Two layers, so the game never cares WHERE the data lives:
 - SaveData: what is saved (best record per disk count, sound on/off) and how it becomes
   JSON text.
 - A backend: where that text is kept. FileBackend writes a file on the PC;
-  the browser version (phase F7) will keep it in localStorage instead.
+  BrowserBackend keeps it in the browser's localStorage.
 """
 
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -15,6 +16,7 @@ from typing import Protocol
 from hanoi.logic.session import GameResult
 
 DEFAULT_SAVE_FILE = Path.home() / ".hanoi_towers" / "save.json"
+SAVE_KEY = "hanoi-towers-save"  # the name of our entry in the browser's localStorage
 
 
 class TextBackend(Protocol):
@@ -39,6 +41,42 @@ class FileBackend:
     def save_text(self, text: str) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(text, encoding="utf-8")
+
+
+class LocalStorage(Protocol):
+    """The two methods of the browser's localStorage that we use (their JavaScript names)."""
+
+    def getItem(self, key: str) -> str | None: ...
+
+    def setItem(self, key: str, value: str) -> None: ...
+
+
+class BrowserBackend:
+    """Keeps the save data in the browser's localStorage.
+
+    localStorage is a small "name -> text" store that the browser gives every web page.
+    It survives closing the tab, like the file does on the PC. A web page cannot write
+    files on your disk, so this is where the web version keeps its records.
+    """
+
+    def __init__(self, local_storage: LocalStorage) -> None:
+        self._storage = local_storage  # passed in, so the tests can use a fake one
+
+    def load_text(self) -> str | None:
+        text = self._storage.getItem(SAVE_KEY)
+        return text if isinstance(text, str) else None  # JavaScript's null when nothing saved
+
+    def save_text(self, text: str) -> None:
+        self._storage.setItem(SAVE_KEY, text)
+
+
+def default_backend() -> TextBackend:
+    """Where this copy of the game saves: in the browser, or in a file on the PC."""
+    if sys.platform == "emscripten":  # Python compiled to run inside a web page (pygbag)
+        import platform  # in the browser, pygbag adds `window`: the page's JavaScript window
+
+        return BrowserBackend(platform.window.localStorage)
+    return FileBackend()
 
 
 @dataclass(frozen=True)

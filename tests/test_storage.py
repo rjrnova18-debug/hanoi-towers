@@ -1,9 +1,19 @@
 """Tests for saving records (storage.py)."""
 
+import platform
+import sys
+
 import pytest
 
 from hanoi.logic.session import GameResult
-from hanoi.storage import FileBackend, Record, SaveData
+from hanoi.storage import (
+    SAVE_KEY,
+    BrowserBackend,
+    FileBackend,
+    Record,
+    SaveData,
+    default_backend,
+)
 
 
 class MemoryBackend:
@@ -156,3 +166,56 @@ def test_damaged_settings_keep_the_sound_on_and_the_records(settings):
 
     assert not save.muted
     assert save.best_record(3).moves == 7
+
+
+# --- The browser version: localStorage ------------------------------------------------
+
+
+class FakeLocalStorage:
+    """Behaves like the browser's localStorage: a dict with JavaScript method names."""
+
+    def __init__(self) -> None:
+        self.items: dict[str, str] = {}
+
+    def getItem(self, key: str) -> str | None:
+        return self.items.get(key)  # the real one gives null (None) for a missing key
+
+    def setItem(self, key: str, value: str) -> None:
+        self.items[key] = value
+
+
+def test_browser_backend_keeps_records_in_local_storage():
+    storage = FakeLocalStorage()
+    SaveData(BrowserBackend(storage)).submit(win(moves=7, seconds=20))
+
+    reopened = SaveData(BrowserBackend(storage))  # like reloading the page
+
+    assert SAVE_KEY in storage.items
+    assert reopened.best_record(3) == Record(moves=7, seconds=20)
+
+
+def test_browser_backend_with_nothing_saved_yet_starts_fresh():
+    save = SaveData(BrowserBackend(FakeLocalStorage()))
+
+    assert save.best_record(3) is None
+    assert not save.muted
+
+
+def test_on_the_pc_the_game_saves_to_a_file():
+    assert isinstance(default_backend(), FileBackend)
+
+
+def test_in_the_browser_the_game_saves_to_local_storage(monkeypatch):
+    storage = FakeLocalStorage()
+
+    class FakeWindow:
+        localStorage = storage
+
+    monkeypatch.setattr(sys, "platform", "emscripten")  # pretend to run inside pygbag
+    monkeypatch.setattr(platform, "window", FakeWindow, raising=False)
+
+    backend = default_backend()
+    backend.save_text("hello")
+
+    assert isinstance(backend, BrowserBackend)
+    assert storage.items[SAVE_KEY] == "hello"
