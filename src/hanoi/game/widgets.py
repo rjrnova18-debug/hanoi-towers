@@ -1,4 +1,4 @@
-"""Reusable pieces of the interface: colors, background, fonts, text, buttons and stars.
+"""Reusable pieces of the interface: colors, background, fonts, text, buttons and icons.
 
 Every screen uses them, so they live here instead of being copied into each screen.
 """
@@ -90,6 +90,7 @@ def draw_text(
 
 
 BUTTON_WIDTH = 160
+BUTTON_HEIGHT = 44
 BUTTON_SPACING = 175  # distance between the centers of two buttons in a row
 
 
@@ -103,11 +104,16 @@ class Button:
     """A rounded button that reacts to the mouse (or a finger) and to a keyboard key."""
 
     def __init__(
-        self, label: str, center: Point, width: int = BUTTON_WIDTH, key: int | None = None
+        self,
+        label: str,
+        center: Point,
+        width: int = BUTTON_WIDTH,
+        key: int | None = None,
+        height: int = BUTTON_HEIGHT,
     ) -> None:
         self.label = label
         self.key = key
-        self.rect = pygame.Rect(0, 0, width, 44)
+        self.rect = pygame.Rect(0, 0, width, height)
         self.rect.center = (round(center[0]), round(center[1]))
 
     def is_pressed(self, event: pygame.event.Event) -> bool:
@@ -119,8 +125,14 @@ class Button:
         return False
 
     def draw(self, surface: pygame.Surface, font: pygame.font.Font) -> None:
-        """A key seen from the front: a darker side below it, which the top covers
-        when the button is held down, so it looks pushed in.
+        top = self.draw_key(surface)
+        draw_text(surface, self.label, font, top.center)
+
+    def draw_key(self, surface: pygame.Surface) -> pygame.Rect:
+        """The button without its label: a key seen from the front, with a darker side
+        below it that the top covers when the button is held down, so it looks pushed in.
+
+        Returns the top of the key (it moves down when pushed): the label or icon goes there.
         """
         hovered = self.rect.collidepoint(pygame.mouse.get_pos())
         pressed = hovered and pygame.mouse.get_pressed()[0]
@@ -130,7 +142,7 @@ class Button:
         pygame.draw.rect(surface, blend(config.BUTTON_COLOR, BLACK, 0.45), side, border_radius=12)
         top = self.rect.move(0, config.BUTTON_DEPTH if pressed else 0)
         pygame.draw.rect(surface, color, top, border_radius=12)
-        draw_text(surface, self.label, font, top.center)
+        return top
 
 
 def draw_star(surface: pygame.Surface, center: Point, radius: float, filled: bool) -> None:
@@ -146,6 +158,31 @@ def draw_star(surface: pygame.Surface, center: Point, radius: float, filled: boo
         )
     color = config.STAR_ON_COLOR if filled else config.STAR_OFF_COLOR
     pygame.draw.polygon(surface, color, points)
+
+
+def draw_speaker(surface: pygame.Surface, center: Point, muted: bool) -> None:
+    """A speaker icon: with sound waves when the sound is on, with a red X when it is off."""
+    x, y = round(center[0]), round(center[1])
+    color = config.MUTED_TEXT_COLOR if muted else config.TEXT_COLOR
+    # The box and the cone of the speaker, as one shape (it faces right).
+    speaker = [
+        (x - 11, y - 4),
+        (x - 6, y - 4),
+        (x + 1, y - 10),
+        (x + 1, y + 10),
+        (x - 6, y + 4),
+        (x - 11, y + 4),
+    ]
+    pygame.draw.polygon(surface, color, speaker)
+
+    if muted:
+        pygame.draw.line(surface, config.ERROR_COLOR, (x + 5, y - 5), (x + 13, y + 5), 3)
+        pygame.draw.line(surface, config.ERROR_COLOR, (x + 5, y + 5), (x + 13, y - 5), 3)
+        return
+    for radius in (6, 11):  # two waves, the second one wider
+        waves = pygame.Rect(0, 0, radius * 2, radius * 2)
+        waves.center = (x + 1, y)
+        pygame.draw.arc(surface, color, waves, -math.pi / 4, math.pi / 4, 2)
 
 
 def format_time(seconds: float) -> str:

@@ -1,7 +1,8 @@
-"""Saves the player's best records between games.
+"""Saves the player's best records and settings between games.
 
 Two layers, so the game never cares WHERE the data lives:
-- SaveData: what is saved (best record per disk count) and how it becomes JSON text.
+- SaveData: what is saved (best record per disk count, sound on/off) and how it becomes
+  JSON text.
 - A backend: where that text is kept. FileBackend writes a file on the PC;
   the browser version (phase F7) will keep it in localStorage instead.
 """
@@ -55,11 +56,13 @@ class Record:
 
 
 class SaveData:
-    """The player's best records, loaded once and saved after every new record."""
+    """The player's records and settings: loaded once, saved again after every change."""
 
     def __init__(self, backend: TextBackend) -> None:
         self._backend = backend
-        self._records: dict[int, Record] = _read_records(backend.load_text())
+        data = _parse(backend.load_text())
+        self._records: dict[int, Record] = _read_records(data)
+        self._muted = _read_muted(data)
 
     def best_record(self, disk_count: int) -> Record | None:
         return self._records.get(disk_count)
@@ -75,31 +78,63 @@ class SaveData:
         if not candidate.is_better_than(self.best_record(result.disk_count)):
             return False
         self._records[result.disk_count] = candidate
-        self._backend.save_text(_write_records(self._records))
+        self._save()
         return True
 
+    @property
+    def muted(self) -> bool:
+        return self._muted
 
-def _read_records(text: str | None) -> dict[int, Record]:
-    """Turn saved JSON text into records. A missing or damaged save starts fresh."""
+    def set_muted(self, muted: bool) -> None:
+        self._muted = muted
+        self._save()
+
+    def _save(self) -> None:
+        # Records and settings share one file, so every save writes both.
+        self._backend.save_text(_to_json(self._records, self._muted))
+
+
+# --- JSON <-> Python ------------------------------------------------------------------
+#
+# The saved text looks like this:
+#   {"records": {"3": {"moves": 7, "seconds": 12.5}}, "settings": {"muted": false}}
+# Saves from older versions have no "settings": the defaults are used.
+
+
+def _parse(text: str | None) -> dict:
+    """The saved JSON as a dict. A missing or damaged save gives an empty one."""
     if not text:
         return {}
     try:
         data = json.loads(text)
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _read_records(data: dict) -> dict[int, Record]:
+    try:
         return {
             int(disk_count): Record(moves=int(saved["moves"]), seconds=float(saved["seconds"]))
-            for disk_count, saved in data["records"].items()
+            for disk_count, saved in data.get("records", {}).items()
         }
     except (ValueError, KeyError, TypeError, AttributeError):
         # A broken save file must never stop the game from starting.
         return {}
 
 
-def _write_records(records: dict[int, Record]) -> str:
+def _read_muted(data: dict) -> bool:
+    settings = data.get("settings")
+    return isinstance(settings, dict) and settings.get("muted") is True
+
+
+def _to_json(records: dict[int, Record], muted: bool) -> str:
     # JSON keys are always text, so the disk count is saved as "3", "4", ...
     data = {
         "records": {
             str(disk_count): {"moves": record.moves, "seconds": record.seconds}
             for disk_count, record in sorted(records.items())
-        }
+        },
+        "settings": {"muted": muted},
     }
     return json.dumps(data, indent=2)

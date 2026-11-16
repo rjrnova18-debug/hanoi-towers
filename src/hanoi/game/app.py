@@ -1,7 +1,9 @@
 """The app: opens the window, owns what screens share, and runs the main loop.
 
 Every frame: read input -> update -> draw -> repeat. The current screen does the real work.
-When the screen changes, the last frame of the old one fades out on top of the new one.
+Two things belong to no single screen, so the app does them for all of them:
+- when the screen changes, the last frame of the old one fades out on top of the new one;
+- the sound button in the top-right corner (or the M key) mutes the game.
 """
 
 import asyncio
@@ -9,14 +11,16 @@ import asyncio
 import pygame
 
 from hanoi import config
-from hanoi.game.audio import Audio
+from hanoi.game.audio import Audio, Sound
 from hanoi.game.screens.base import Screen
 from hanoi.game.screens.menu import MenuScreen
 from hanoi.game.screens.play import PlayScreen
 from hanoi.game.screens.win import WinScreen
-from hanoi.game.widgets import load_fonts
+from hanoi.game.widgets import Button, draw_speaker, load_fonts
 from hanoi.logic.session import GameSession
 from hanoi.storage import FileBackend, SaveData
+
+SOUND_BUTTON_CENTER = (config.SCREEN_WIDTH - 28, 26)  # the top-right corner
 
 
 class App:
@@ -29,7 +33,8 @@ class App:
         pygame.display.set_caption(config.WINDOW_TITLE)
         self.fonts = load_fonts()
         self.save = save or SaveData(FileBackend())
-        self.audio = Audio()
+        self.audio = Audio(muted=self.save.muted)  # starts the way the player left it
+        self.sound_button = Button("", SOUND_BUTTON_CENTER, width=40, height=34, key=pygame.K_m)
         self.screen: Screen = MenuScreen(self)
         self.running = True
         self.fading_frame: pygame.Surface | None = None  # last frame of the previous screen
@@ -77,11 +82,24 @@ class App:
         for event in events:
             if event.type == pygame.QUIT:
                 self.running = False
+            elif self.sound_button.is_pressed(event):
+                self._toggle_sound()  # the screen never sees this click or key
             else:
                 self.screen.handle_event(event)
         self.screen.update(dt)
         self.screen.draw(self.surface)
+        self._draw_sound_button()
         self._draw_fade(dt)
+
+    def _toggle_sound(self) -> None:
+        """Mute or unmute, and save the choice so the next game starts the same way."""
+        self.audio.toggle_mute()
+        self.save.set_muted(self.audio.muted)
+        self.audio.play(Sound.PICK)  # a click you can hear says "the sound is back"
+
+    def _draw_sound_button(self) -> None:
+        top = self.sound_button.draw_key(self.surface)
+        draw_speaker(self.surface, top.center, muted=self.audio.muted)
 
     def _draw_fade(self, dt: float) -> None:
         """Draw the old screen's last frame over the new one, more transparent every frame."""

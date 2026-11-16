@@ -108,7 +108,8 @@ class MenuScreen(Screen):
             draw_text(surface, best, fonts.small, below_button, config.MUTED_TEXT_COLOR)
 
         controls = (
-            "Drag or click the disks  ·  keys 1 2 3  ·  H hint  ·  S solve  ·  U undo  ·  R restart"
+            "Drag or click the disks  ·  keys 1 2 3  ·  H hint  ·  S solve  ·  U undo  ·  "
+            "R restart  ·  M sound"
         )
         draw_text(surface, controls, fonts.small, (CENTER_X, 480), config.MUTED_TEXT_COLOR)
 

@@ -7,6 +7,7 @@ from hanoi import config
 from hanoi.game.app import App
 from hanoi.game.audio import Sound
 from hanoi.game.board_view import tower_center_x
+from hanoi.game.screens.base import Screen
 from hanoi.game.screens.menu import DemoBoard, MenuScreen
 from hanoi.game.screens.play import PlayScreen
 from hanoi.game.screens.win import WinScreen
@@ -568,3 +569,58 @@ def test_closing_the_window_stops_the_loop(tmp_path):
     real_app.step([pygame.event.Event(pygame.QUIT)], 1 / 60)
 
     assert not real_app.running
+
+
+# --- Sound button (owned by the app, on every screen) -------------------------------------
+
+
+def press_m(real_app):
+    real_app.step([pygame.event.Event(pygame.KEYDOWN, key=pygame.K_m)], 1 / 60)
+
+
+def test_m_mutes_and_the_choice_is_remembered_next_time(tmp_path):
+    save_file = tmp_path / "save.json"
+    real_app = App(save=SaveData(FileBackend(save_file)))
+
+    press_m(real_app)
+    assert real_app.audio.muted
+
+    next_time = App(save=SaveData(FileBackend(save_file)))
+    assert next_time.audio.muted
+
+
+def test_m_again_turns_the_sound_back_on(tmp_path):
+    real_app = App(save=SaveData(FileBackend(tmp_path / "save.json")))
+
+    press_m(real_app)
+    press_m(real_app)
+
+    assert not real_app.audio.muted
+    assert not real_app.save.muted
+
+
+class EventRecorder(Screen):
+    """A screen that only writes down the events it receives."""
+
+    def __init__(self, app) -> None:
+        super().__init__(app)
+        self.events: list[pygame.event.Event] = []
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        self.events.append(event)
+
+
+def test_the_sound_button_click_and_key_never_reach_the_screen(tmp_path):
+    real_app = App(save=SaveData(FileBackend(tmp_path / "save.json")))
+    recorder = EventRecorder(real_app)
+    real_app.screen = recorder
+    speaker_click = pygame.event.Event(
+        pygame.MOUSEBUTTONDOWN, pos=real_app.sound_button.rect.center, button=1
+    )
+    other_key = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_h)
+
+    real_app.step([speaker_click, other_key], 1 / 60)
+    press_m(real_app)
+
+    assert recorder.events == [other_key]
+    assert not real_app.audio.muted  # muted by the click, unmuted by M

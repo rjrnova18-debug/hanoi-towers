@@ -111,3 +111,48 @@ def test_file_backend_with_no_file_yet_has_no_records(tmp_path):
     save = SaveData(FileBackend(tmp_path / "save.json"))
 
     assert save.best_record(3) is None
+
+
+# --- Settings: sound on or off ------------------------------------------------------
+
+
+def test_sound_is_on_by_default():
+    assert not SaveData(MemoryBackend()).muted
+
+
+def test_muting_survives_closing_the_game():
+    backend = MemoryBackend()
+    SaveData(backend).set_muted(True)
+
+    assert SaveData(backend).muted
+
+
+def test_a_save_from_before_settings_existed_still_loads():
+    old_save = '{"records": {"3": {"moves": 7, "seconds": 20.0}}}'
+
+    save = SaveData(MemoryBackend(old_save))
+
+    assert save.best_record(3) == Record(moves=7, seconds=20)
+    assert not save.muted
+
+
+def test_records_and_settings_never_overwrite_each_other():
+    backend = MemoryBackend()
+    save = SaveData(backend)
+    save.set_muted(True)
+    save.submit(win(moves=7))
+
+    reopened = SaveData(backend)
+
+    assert reopened.muted
+    assert reopened.best_record(3).moves == 7
+
+
+@pytest.mark.parametrize("settings", ['"loud"', '{"muted": "yes"}', "[]"])
+def test_damaged_settings_keep_the_sound_on_and_the_records(settings):
+    text = '{"records": {"3": {"moves": 7, "seconds": 20.0}}, "settings": ' + settings + "}"
+
+    save = SaveData(MemoryBackend(text))
+
+    assert not save.muted
+    assert save.best_record(3).moves == 7
