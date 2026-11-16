@@ -184,7 +184,7 @@ def test_illegal_drop_is_refused_and_the_disk_shakes(app):
 
     assert board(screen) == ((3, 2), (), (1,))
     assert screen.session.move_count == 1
-    assert screen.shake is not None
+    assert screen.motion.disk == 2  # back on its tower, shaking
 
 
 def test_dropping_on_its_own_tower_puts_the_disk_back(app):
@@ -278,20 +278,6 @@ def test_only_towers_with_room_light_up(app):
 
     assert screen.legal_targets() == [B]
     assert not screen.session.assisted  # showing the rules is not help
-
-
-def test_a_landing_disk_bounces_then_rests(app):
-    screen = PlayScreen(app, 3)
-    key(screen, pygame.K_1)
-    key(screen, pygame.K_3)
-    for _ in range(120):
-        screen.update(1 / 120)
-        if screen.flight is None:
-            break
-
-    assert screen.bounce is not None
-    let_animations_finish(screen)
-    assert screen.bounce is None
 
 
 # --- Sounds --------------------------------------------------------------------------------

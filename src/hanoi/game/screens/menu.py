@@ -7,8 +7,8 @@ distracts from the menu.
 import pygame
 
 from hanoi import config
-from hanoi.game.animations import Flight
-from hanoi.game.board_view import draw_board, draw_disk, resting_center
+from hanoi.game.board_view import draw_board, resting_center
+from hanoi.game.disk_motion import DiskMotion
 from hanoi.game.screens.base import AppServices, Screen
 from hanoi.game.widgets import (
     Button,
@@ -30,16 +30,14 @@ class DemoBoard:
 
     def __init__(self) -> None:
         self.towers = Towers.new_game(config.MENU_DEMO_DISKS)
+        self.motion = DiskMotion(config.MENU_DEMO_DISKS)
         self.target = START_TOWER  # flipped to GOAL_TOWER before the first trip
         self.moves_left: list[Move] = []
-        self.flight: Flight | None = None
         self.wait = config.MENU_DEMO_PAUSE
 
     def update(self, dt: float) -> None:
-        if self.flight is not None:
-            self.flight.update(dt)
-            if self.flight.done:
-                self.flight = None
+        self.motion.update(dt)
+        if self.motion.is_flying:
             return
         self.wait -= dt
         if self.wait > 0:
@@ -54,14 +52,12 @@ class DemoBoard:
         disk = self.towers.top_disk(move.source)
         start = resting_center(self.towers.position(), disk, config.MENU_DEMO_DISKS)
         self.towers.move(move)
-        end = resting_center(self.towers.position(), disk, config.MENU_DEMO_DISKS)
-        self.flight = Flight.between(disk, start, end, config.MENU_DEMO_SPEED)
+        self.motion.fly(disk, start, self.towers.position(), config.MENU_DEMO_SPEED)
 
     def draw(self, surface: pygame.Surface) -> None:
-        flying_disk = self.flight.disk if self.flight is not None else None
-        draw_board(surface, self.towers.position(), config.MENU_DEMO_DISKS, flying_disk)
-        if self.flight is not None:
-            draw_disk(surface, self.flight.disk, config.MENU_DEMO_DISKS, self.flight.position())
+        position = self.towers.position()
+        draw_board(surface, position, config.MENU_DEMO_DISKS, hidden_disk=self.motion.disk)
+        self.motion.draw(surface, position)
 
 
 class MenuScreen(Screen):

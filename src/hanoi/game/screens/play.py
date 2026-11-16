@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import pygame
 
 from hanoi import config
-from hanoi.game.animations import Bounce, Flight, Point, Shake
+from hanoi.game.animations import Point
 from hanoi.game.audio import Sound
 from hanoi.game.board_view import (
     draw_board,
@@ -22,6 +22,7 @@ from hanoi.game.board_view import (
     resting_center,
     tower_at,
 )
+from hanoi.game.disk_motion import DiskMotion
 from hanoi.game.screens.base import AppServices, Screen
 from hanoi.game.widgets import (
     WHITE,
@@ -55,9 +56,7 @@ class PlayScreen(Screen):
         super().__init__(app)
         self.session = GameSession(disk_count)
         self.held: HeldDisk | None = None
-        self.flight: Flight | None = None
-        self.shake: Shake | None = None
-        self.bounce: Bounce | None = None
+        self.motion = DiskMotion(disk_count)  # the disk that flies, shakes or bounces
         self.hint: Move | None = None  # the suggested move, shown until the board changes
         self.moves_to_autoplay: list[Move] = []  # filled by Solve; played one per flight
         self.autoplay_pause = 0.0
@@ -91,7 +90,7 @@ class PlayScreen(Screen):
     def handle_event(self, event: pygame.event.Event) -> None:
         if self._handle_always_available(event):
             return
-        if self.flight is not None or self.is_solving:
+        if self.motion.is_flying or self.is_solving:
             return  # wait: a disk is flying, or the computer is playing
         if self.hint_button.is_pressed(event):
             self._show_hint()
@@ -180,7 +179,7 @@ class PlayScreen(Screen):
             self.hint = None  # the board changed: the old hint no longer applies
             self._fly(held.disk, start)  # to its new tower
         else:
-            self.shake = Shake(held.disk)  # illegal: it snaps back and shakes
+            self.motion.shake(held.disk)  # illegal: it snaps back and shakes
             self.app.audio.play(Sound.ERROR)
 
     def _undo(self) -> None:
@@ -218,44 +217,30 @@ class PlayScreen(Screen):
         disk = self.session.towers.top_disk(move.source)
         start = resting_center(self.session.towers.position(), disk, self.disk_count)
         self.session.make_move(move)
-        self._fly(disk, start, speed=self._autoplay_speed())
+        # The solver is fast: no hop on landing, to keep its rhythm.
+        self._fly(disk, start, speed=self._autoplay_speed(), bounce=False)
         self.autoplay_pause = config.SOLVE_PAUSE
 
     def _autoplay_speed(self) -> float:
         extra_disks = self.disk_count - config.MIN_DISKS
         return config.FLIGHT_SPEED * (1 + config.SOLVE_SPEEDUP_PER_DISK * extra_disks)
 
-    def _fly(self, disk: int, start: Point, speed: float = config.FLIGHT_SPEED) -> None:
+    def _fly(
+        self, disk: int, start: Point, speed: float = config.FLIGHT_SPEED, bounce: bool = True
+    ) -> None:
         """Animate `disk` from `start` to wherever it rests on the board now."""
-        end = resting_center(self.session.towers.position(), disk, self.disk_count)
-        self.flight = Flight.between(disk, start, end, speed)
+        self.motion.fly(disk, start, self.session.towers.position(), speed, bounce)
 
     # --- Time ----------------------------------------------------------------------------
 
     def update(self, dt: float) -> None:
-        if self.flight is not None:
-            self.flight.update(dt)
-            if self.flight.done:
-                self._land(self.flight.disk)
-        if self.shake is not None:
-            self.shake.update(dt)
-            if self.shake.done:
-                self.shake = None
-        if self.bounce is not None:
-            self.bounce.update(dt)
-            if self.bounce.done:
-                self.bounce = None
-        if self.is_solving and self.flight is None:
+        # Every flight lands here: a move, a disk put back, an undo or a solver move.
+        if self.motion.update(dt) is not None:
+            self.app.audio.play(Sound.DROP)
+        if self.is_solving and not self.motion.is_flying:
             self._play_next_autoplay_move(dt)
-        if self.session.is_solved() and self.flight is None:
+        if self.session.is_solved() and not self.motion.is_flying:
             self._count_down_to_win_screen(dt)
-
-    def _land(self, disk: int) -> None:
-        """Every flight ends here: a move, a disk put back, an undo or a solver move."""
-        self.flight = None
-        self.app.audio.play(Sound.DROP)
-        if not self.is_solving:  # the solver is fast: skip the hop to keep its rhythm
-            self.bounce = Bounce(disk)
 
     def _count_down_to_win_screen(self, dt: float) -> None:
         was_waiting = self.win_countdown > 0
@@ -272,46 +257,28 @@ class PlayScreen(Screen):
         if self.held is not None:
             for tower in self.legal_targets():
                 draw_target_glow(surface, tower)
+        # At most one disk is out of its stack. The one in the player's hand wins over an
+        # animation (e.g. picking a disk up while the last one still bounces).
+        held = self.held
+        moving_disk = held.disk if held is not None else self.motion.disk
         draw_board(
             surface,
             position,
             self.disk_count,
-            hidden_disk=self._moving_disk(),
+            hidden_disk=moving_disk,
             label_font=self.app.fonts.small,
         )
-        if self.hint is not None and self.flight is None:
+        if self.hint is not None and not self.motion.is_flying:
             draw_hint(surface, self.hint, position, self.disk_count)
-        self._draw_moving_disk(surface)
+        if held is not None:
+            center = held.pointer or lifted_center(held.from_tower)
+            draw_disk(surface, held.disk, self.disk_count, center)
+        else:
+            self.motion.draw(surface, position)
         # The label follows the state, so it can never be out of date.
         self.solve_button.label = "Stop (S)" if self.is_solving else "Solve (S)"
         for button in self.buttons:
             button.draw(surface, self.app.fonts.normal)
-
-    def _moving_disk(self) -> int | None:
-        """The disk that is not resting in its stack right now (the board skips it)."""
-        if self.flight is not None:
-            return self.flight.disk
-        if self.held is not None:
-            return self.held.disk
-        if self.shake is not None:
-            return self.shake.disk
-        if self.bounce is not None:
-            return self.bounce.disk
-        return None
-
-    def _draw_moving_disk(self, surface: pygame.Surface) -> None:
-        if self.flight is not None:
-            draw_disk(surface, self.flight.disk, self.disk_count, self.flight.position())
-        elif self.held is not None:
-            center = self.held.pointer or lifted_center(self.held.from_tower)
-            draw_disk(surface, self.held.disk, self.disk_count, center)
-        elif self.shake is not None:
-            x, y = resting_center(self.session.towers.position(), self.shake.disk, self.disk_count)
-            center = (x + self.shake.offset_x(), y)
-            draw_disk(surface, self.shake.disk, self.disk_count, center, config.ERROR_COLOR)
-        elif self.bounce is not None:
-            x, y = resting_center(self.session.towers.position(), self.bounce.disk, self.disk_count)
-            draw_disk(surface, self.bounce.disk, self.disk_count, (x, y + self.bounce.offset_y()))
 
     def _draw_score_bar(self, surface: pygame.Surface) -> None:
         fonts = self.app.fonts
