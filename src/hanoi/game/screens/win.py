@@ -5,7 +5,7 @@ import pygame
 from hanoi import config
 from hanoi.game.board_view import draw_board
 from hanoi.game.screens.base import AppServices, Screen
-from hanoi.game.widgets import Button, draw_star, draw_text, format_time
+from hanoi.game.widgets import Button, button_row_centers, draw_star, draw_text, format_time
 from hanoi.logic.rules import Position, minimum_moves
 from hanoi.logic.session import GameResult
 
@@ -33,12 +33,10 @@ class WinScreen(Screen):
             choices.append(("next", f"{self.result.disk_count + 1} disks (N)", pygame.K_n))
         choices.append(("menu", "Menu (Esc)", pygame.K_ESCAPE))
 
-        spacing = 170
-        first_x = CENTER_X - spacing * (len(choices) - 1) / 2
+        centers = button_row_centers(len(choices), BUTTON_ROW_Y)
         buttons = {}
-        for index, (name, label, key) in enumerate(choices):
-            center = (first_x + index * spacing, BUTTON_ROW_Y)
-            buttons[name] = Button(label, center, width=160, key=key)
+        for (name, label, key), center in zip(choices, centers, strict=True):
+            buttons[name] = Button(label, center, key=key)
         return buttons
 
     def handle_event(self, event: pygame.event.Event) -> None:

@@ -30,6 +30,7 @@ DISK_GAP = 3  # visible space between stacked disks
 DISK_MIN_WIDTH = 64
 DISK_MAX_WIDTH = 290
 LIFT_Y = 140  # height where a picked-up disk floats
+HINT_ARROW_Y = 112  # height of the hint arrow, between the score bar and a lifted disk
 
 # --- Colors (R, G, B) ----------------------------------------------------------------
 
@@ -44,6 +45,7 @@ STAR_ON_COLOR = (254, 202, 87)
 STAR_OFF_COLOR = (60, 64, 85)
 BUTTON_COLOR = (50, 54, 76)
 BUTTON_HOVER_COLOR = (66, 71, 99)
+HINT_COLOR = (240, 242, 255)  # white: it must stand out from every disk color
 
 # One color per disk size, smallest first: a rainbow from red to pink.
 DISK_COLORS = [

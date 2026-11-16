@@ -12,9 +12,16 @@ import pygame
 
 from hanoi import config
 from hanoi.game.animations import Flight, Point, Shake
-from hanoi.game.board_view import draw_board, draw_disk, lifted_center, resting_center, tower_at
+from hanoi.game.board_view import (
+    draw_board,
+    draw_disk,
+    draw_hint,
+    lifted_center,
+    resting_center,
+    tower_at,
+)
 from hanoi.game.screens.base import AppServices, Screen
-from hanoi.game.widgets import Button, draw_text, format_time
+from hanoi.game.widgets import Button, button_row_centers, draw_text, format_time
 from hanoi.logic.rules import Move, minimum_moves
 from hanoi.logic.session import GameSession
 
@@ -39,10 +46,14 @@ class PlayScreen(Screen):
         self.held: HeldDisk | None = None
         self.flight: Flight | None = None
         self.shake: Shake | None = None
+        self.hint: Move | None = None  # the suggested move, shown until the board changes
         self.win_countdown = config.WIN_DELAY  # a short pause to see the solved board
-        self.undo_button = Button("Undo (U)", (300, BUTTON_ROW_Y), key=pygame.K_u)
-        self.restart_button = Button("Restart (R)", (480, BUTTON_ROW_Y), key=pygame.K_r)
-        self.menu_button = Button("Menu (Esc)", (660, BUTTON_ROW_Y), key=pygame.K_ESCAPE)
+        centers = button_row_centers(4, BUTTON_ROW_Y)
+        self.hint_button = Button("Hint (H)", centers[0], key=pygame.K_h)
+        self.undo_button = Button("Undo (U)", centers[1], key=pygame.K_u)
+        self.restart_button = Button("Restart (R)", centers[2], key=pygame.K_r)
+        self.menu_button = Button("Menu (Esc)", centers[3], key=pygame.K_ESCAPE)
+        self.buttons = [self.hint_button, self.undo_button, self.restart_button, self.menu_button]
 
     @property
     def disk_count(self) -> int:
@@ -51,17 +62,32 @@ class PlayScreen(Screen):
     # --- Input -------------------------------------------------------------------------
 
     def handle_event(self, event: pygame.event.Event) -> None:
+        if self._handle_always_available(event):
+            return
+        if self.flight is not None:
+            return  # wait until the flying disk lands
+        if self.hint_button.is_pressed(event):
+            self._show_hint()
+        elif self.undo_button.is_pressed(event):
+            self._undo()
+        else:
+            self._handle_board_input(event)
+
+    def _handle_always_available(self, event: pygame.event.Event) -> bool:
+        """Esc, Menu and Restart work at any moment. Returns True if the event was used."""
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.held:
             self.held = None  # Esc first puts the disk down; a second Esc opens the menu
         elif self.menu_button.is_pressed(event):
             self.app.show_menu()
         elif self.restart_button.is_pressed(event):
             self.app.start_game(self.disk_count)
-        elif self.flight is not None:
-            return  # wait until the flying disk lands
-        elif self.undo_button.is_pressed(event):
-            self._undo()
-        elif event.type == pygame.KEYDOWN and event.key in TOWER_KEYS:
+        else:
+            return False
+        return True
+
+    def _handle_board_input(self, event: pygame.event.Event) -> None:
+        """Keys 1/2/3 and the mouse (or a finger) on the towers."""
+        if event.type == pygame.KEYDOWN and event.key in TOWER_KEYS:
             self._select(TOWER_KEYS[event.key])
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             self._press(event.pos)
@@ -119,6 +145,7 @@ class PlayScreen(Screen):
         if tower is None or tower == held.from_tower:
             self._fly(held.disk, start)  # put it back where it was
         elif self.session.make_move(Move(held.from_tower, tower)):
+            self.hint = None  # the board changed: the old hint no longer applies
             self._fly(held.disk, start)  # to its new tower
         else:
             self.shake = Shake(held.disk)  # illegal: it snaps back and shakes
@@ -128,8 +155,14 @@ class PlayScreen(Screen):
         before = self.session.towers.position()
         undo_move = self.session.undo()
         if undo_move is not None:
+            self.hint = None
             disk = self.session.towers.top_disk(undo_move.target)
             self._fly(disk, resting_center(before, disk, self.disk_count))
+
+    def _show_hint(self) -> None:
+        """Ask the solver for the best move. The session marks the game as assisted."""
+        self.held = None
+        self.hint = self.session.hint()
 
     def _fly(self, disk: int, start: Point) -> None:
         """Animate `disk` from `start` to wherever it rests on the board now."""
@@ -159,17 +192,20 @@ class PlayScreen(Screen):
     # --- Drawing -------------------------------------------------------------------------
 
     def draw(self, surface: pygame.Surface) -> None:
+        position = self.session.towers.position()
         surface.fill(config.BACKGROUND_COLOR)
         self._draw_score_bar(surface)
         draw_board(
             surface,
-            self.session.towers.position(),
+            position,
             self.disk_count,
             hidden_disk=self._moving_disk(),
             label_font=self.app.fonts.small,
         )
+        if self.hint is not None and self.flight is None:
+            draw_hint(surface, self.hint, position, self.disk_count)
         self._draw_moving_disk(surface)
-        for button in (self.undo_button, self.restart_button, self.menu_button):
+        for button in self.buttons:
             button.draw(surface, self.app.fonts.normal)
 
     def _moving_disk(self) -> int | None:
@@ -199,7 +235,10 @@ class PlayScreen(Screen):
         pygame.draw.rect(surface, config.PANEL_COLOR, (0, 0, config.SCREEN_WIDTH, 76))
 
         draw_text(surface, f"{self.disk_count} disks", fonts.normal, (110, 28))
-        draw_text(surface, self._best_text(), fonts.small, (110, 54), muted)
+        if self.session.assisted:
+            draw_text(surface, "assisted: no record", fonts.small, (110, 54), config.ACCENT_COLOR)
+        else:
+            draw_text(surface, self._best_text(), fonts.small, (110, 54), muted)
 
         draw_text(surface, f"Moves {self.session.move_count}", fonts.large, (480, 28))
         minimum = f"minimum {minimum_moves(self.disk_count)}"

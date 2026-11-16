@@ -9,7 +9,7 @@ Two kinds of functions live here:
 import pygame
 
 from hanoi import config
-from hanoi.logic.rules import TOWER_NAMES, Position
+from hanoi.logic.rules import TOWER_NAMES, Move, Position
 
 Point = tuple[float, float]
 
@@ -118,6 +118,27 @@ def draw_disk(
     rect = pygame.Rect(0, 0, disk_width(disk, disk_count), height)
     rect.center = (round(center[0]), round(center[1]))
     pygame.draw.rect(surface, color or disk_color(disk, disk_count), rect, border_radius=10)
+
+
+def draw_hint(surface: pygame.Surface, move: Move, position: Position, disk_count: int) -> None:
+    """Outline the disk to move and draw an arrow from its tower to the target tower."""
+    source_stack = position[move.source]
+    disk = source_stack[-1]
+    outline = disk_rect(disk, len(source_stack) - 1, move.source, disk_count).inflate(10, 8)
+    pygame.draw.rect(surface, config.HINT_COLOR, outline, width=3, border_radius=14)
+
+    y = config.HINT_ARROW_Y
+    start_x = tower_center_x(move.source)
+    end_x = tower_center_x(move.target)
+    direction = 1 if end_x > start_x else -1  # +1 points right, -1 points left
+    head_length = 18
+    pygame.draw.line(surface, config.HINT_COLOR, (start_x, y), (end_x - direction * 10, y), 5)
+    arrow_head = [
+        (end_x, y),
+        (end_x - direction * head_length, y - 11),
+        (end_x - direction * head_length, y + 11),
+    ]
+    pygame.draw.polygon(surface, config.HINT_COLOR, arrow_head)
 
 
 def _draw_tower_label(surface: pygame.Surface, tower: int, font: pygame.font.Font) -> None:

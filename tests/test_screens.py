@@ -228,6 +228,40 @@ def test_escape_puts_the_disk_down_first_then_opens_the_menu(app):
     assert app.menu_shown
 
 
+# --- Hint --------------------------------------------------------------------------------
+
+
+def test_hint_suggests_the_best_move_without_moving(app):
+    screen = PlayScreen(app, 3)
+
+    key(screen, pygame.K_h)
+
+    assert screen.hint == Move(A, C)
+    assert screen.session.move_count == 0
+    assert screen.session.assisted
+
+
+def test_hint_disappears_once_the_board_changes(app):
+    screen = PlayScreen(app, 3)
+    key(screen, pygame.K_h)
+
+    key(screen, pygame.K_1)
+    key(screen, pygame.K_3)
+
+    assert screen.hint is None
+
+
+def test_hint_after_a_mistake_points_to_the_recovery(app):
+    screen = PlayScreen(app, 3)
+    key(screen, pygame.K_1)
+    key(screen, pygame.K_2)  # disk 1 to B: not the best first move
+    let_animations_finish(screen)
+
+    key(screen, pygame.K_h)
+
+    assert screen.hint == Move(B, C)
+
+
 # --- Drawing does not crash in any state --------------------------------------------------
 
 
@@ -244,6 +278,8 @@ def test_every_screen_state_can_be_drawn(app):
     key(screen, pygame.K_1)
     key(screen, pygame.K_2)
     screen.draw(surface)  # shaking after an illegal move
+    key(screen, pygame.K_h)
+    screen.draw(surface)  # showing a hint
     MenuScreen(app).draw(surface)
 
 

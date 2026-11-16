@@ -44,10 +44,22 @@ def draw_text(
     surface.blit(image, image.get_rect(center=(round(center[0]), round(center[1]))))
 
 
+BUTTON_WIDTH = 160
+BUTTON_SPACING = 175  # distance between the centers of two buttons in a row
+
+
+def button_row_centers(count: int, y: float) -> list[Point]:
+    """Centers for `count` buttons in a row, centered on the screen."""
+    first_x = config.SCREEN_WIDTH / 2 - BUTTON_SPACING * (count - 1) / 2
+    return [(first_x + index * BUTTON_SPACING, y) for index in range(count)]
+
+
 class Button:
     """A rounded button that reacts to the mouse (or a finger) and to a keyboard key."""
 
-    def __init__(self, label: str, center: Point, width: int = 170, key: int | None = None) -> None:
+    def __init__(
+        self, label: str, center: Point, width: int = BUTTON_WIDTH, key: int | None = None
+    ) -> None:
         self.label = label
         self.key = key
         self.rect = pygame.Rect(0, 0, width, 44)
