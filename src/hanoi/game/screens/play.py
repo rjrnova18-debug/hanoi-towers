@@ -47,40 +47,59 @@ class PlayScreen(Screen):
         self.flight: Flight | None = None
         self.shake: Shake | None = None
         self.hint: Move | None = None  # the suggested move, shown until the board changes
+        self.moves_to_autoplay: list[Move] = []  # filled by Solve; played one per flight
+        self.autoplay_pause = 0.0
         self.win_countdown = config.WIN_DELAY  # a short pause to see the solved board
-        centers = button_row_centers(4, BUTTON_ROW_Y)
+
+        centers = button_row_centers(5, BUTTON_ROW_Y)
         self.hint_button = Button("Hint (H)", centers[0], key=pygame.K_h)
-        self.undo_button = Button("Undo (U)", centers[1], key=pygame.K_u)
-        self.restart_button = Button("Restart (R)", centers[2], key=pygame.K_r)
-        self.menu_button = Button("Menu (Esc)", centers[3], key=pygame.K_ESCAPE)
-        self.buttons = [self.hint_button, self.undo_button, self.restart_button, self.menu_button]
+        self.solve_button = Button("Solve (S)", centers[1], key=pygame.K_s)
+        self.undo_button = Button("Undo (U)", centers[2], key=pygame.K_u)
+        self.restart_button = Button("Restart (R)", centers[3], key=pygame.K_r)
+        self.menu_button = Button("Menu (Esc)", centers[4], key=pygame.K_ESCAPE)
+        self.buttons = [
+            self.hint_button,
+            self.solve_button,
+            self.undo_button,
+            self.restart_button,
+            self.menu_button,
+        ]
 
     @property
     def disk_count(self) -> int:
         return self.session.disk_count
+
+    @property
+    def is_solving(self) -> bool:
+        """True while the computer is playing the solution."""
+        return bool(self.moves_to_autoplay)
 
     # --- Input -------------------------------------------------------------------------
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if self._handle_always_available(event):
             return
-        if self.flight is not None:
-            return  # wait until the flying disk lands
+        if self.flight is not None or self.is_solving:
+            return  # wait: a disk is flying, or the computer is playing
         if self.hint_button.is_pressed(event):
             self._show_hint()
+        elif self.solve_button.is_pressed(event):
+            self._start_solving()
         elif self.undo_button.is_pressed(event):
             self._undo()
         else:
             self._handle_board_input(event)
 
     def _handle_always_available(self, event: pygame.event.Event) -> bool:
-        """Esc, Menu and Restart work at any moment. Returns True if the event was used."""
+        """Esc, Menu, Restart and Stop work at any moment. Returns True if the event was used."""
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE and self.held:
             self.held = None  # Esc first puts the disk down; a second Esc opens the menu
         elif self.menu_button.is_pressed(event):
             self.app.show_menu()
         elif self.restart_button.is_pressed(event):
             self.app.start_game(self.disk_count)
+        elif self.is_solving and self.solve_button.is_pressed(event):
+            self.moves_to_autoplay = []  # Stop: the player takes over from here
         else:
             return False
         return True
@@ -164,10 +183,31 @@ class PlayScreen(Screen):
         self.held = None
         self.hint = self.session.hint()
 
-    def _fly(self, disk: int, start: Point) -> None:
+    def _start_solving(self) -> None:
+        """Ask the solver for every remaining move; update() plays them one by one."""
+        self.held = None
+        self.hint = None
+        self.moves_to_autoplay = self.session.solution()
+
+    def _play_next_autoplay_move(self, dt: float) -> None:
+        self.autoplay_pause -= dt
+        if self.autoplay_pause > 0:
+            return
+        move = self.moves_to_autoplay.pop(0)
+        disk = self.session.towers.top_disk(move.source)
+        start = resting_center(self.session.towers.position(), disk, self.disk_count)
+        self.session.make_move(move)
+        self._fly(disk, start, speed=self._autoplay_speed())
+        self.autoplay_pause = config.SOLVE_PAUSE
+
+    def _autoplay_speed(self) -> float:
+        extra_disks = self.disk_count - config.MIN_DISKS
+        return config.FLIGHT_SPEED * (1 + config.SOLVE_SPEEDUP_PER_DISK * extra_disks)
+
+    def _fly(self, disk: int, start: Point, speed: float = config.FLIGHT_SPEED) -> None:
         """Animate `disk` from `start` to wherever it rests on the board now."""
         end = resting_center(self.session.towers.position(), disk, self.disk_count)
-        self.flight = Flight.between(disk, start, end)
+        self.flight = Flight.between(disk, start, end, speed)
 
     # --- Time ----------------------------------------------------------------------------
 
@@ -180,6 +220,8 @@ class PlayScreen(Screen):
             self.shake.update(dt)
             if self.shake.done:
                 self.shake = None
+        if self.is_solving and self.flight is None:
+            self._play_next_autoplay_move(dt)
         if self.session.is_solved() and self.flight is None:
             self._count_down_to_win_screen(dt)
 
@@ -205,6 +247,8 @@ class PlayScreen(Screen):
         if self.hint is not None and self.flight is None:
             draw_hint(surface, self.hint, position, self.disk_count)
         self._draw_moving_disk(surface)
+        # The label follows the state, so it can never be out of date.
+        self.solve_button.label = "Stop (S)" if self.is_solving else "Solve (S)"
         for button in self.buttons:
             button.draw(surface, self.app.fonts.normal)
 

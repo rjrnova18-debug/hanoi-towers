@@ -66,3 +66,8 @@ SHAKE_DURATION = 0.35  # seconds a disk shakes after an illegal move
 SHAKE_AMPLITUDE = 9  # pixels
 DRAG_THRESHOLD = 6  # pixels the pointer must travel before a click becomes a drag
 WIN_DELAY = 0.5  # seconds to admire the solved board before the win screen
+
+# Solve button: a game of n disks needs 2^n - 1 moves (255 for 8 disks), so bigger games
+# are played faster. Speed = FLIGHT_SPEED x (1 + SOLVE_SPEEDUP_PER_DISK x extra disks).
+SOLVE_SPEEDUP_PER_DISK = 0.5  # 3 disks: normal speed ... 8 disks: 3.5 times faster
+SOLVE_PAUSE = 0.06  # seconds between two moves of the solver

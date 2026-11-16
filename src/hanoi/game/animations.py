@@ -22,18 +22,21 @@ class Flight:
 
     disk: int
     waypoints: list[Point]
+    speed: float = config.FLIGHT_SPEED  # pixels per second
     elapsed: float = 0.0
     duration: float = field(init=False)
 
     def __post_init__(self) -> None:
-        self.duration = max(path_length(self.waypoints) / config.FLIGHT_SPEED, 0.05)
+        self.duration = max(path_length(self.waypoints) / self.speed, 0.05)
 
     @classmethod
-    def between(cls, disk: int, start: Point, end: Point) -> "Flight":
+    def between(
+        cls, disk: int, start: Point, end: Point, speed: float = config.FLIGHT_SPEED
+    ) -> "Flight":
         """Up from `start` to the lift height, across, and down to `end`."""
         lift_y = min(config.LIFT_Y, start[1], end[1])
         waypoints = [start, (start[0], lift_y), (end[0], lift_y), end]
-        return cls(disk, waypoints)
+        return cls(disk, waypoints, speed)
 
     def update(self, dt: float) -> None:
         self.elapsed = min(self.elapsed + dt, self.duration)

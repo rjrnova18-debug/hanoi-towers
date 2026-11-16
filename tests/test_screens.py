@@ -262,6 +262,61 @@ def test_hint_after_a_mistake_points_to_the_recovery(app):
     assert screen.hint == Move(B, C)
 
 
+# --- Solve -------------------------------------------------------------------------------
+
+
+def run_frames(screen, seconds):
+    for _ in range(round(seconds * 60)):
+        screen.update(1 / 60)
+
+
+def test_solve_finishes_the_game_from_a_messy_position(app):
+    screen = PlayScreen(app, 4)
+    key(screen, pygame.K_1)
+    key(screen, pygame.K_2)  # a poor first move
+    let_animations_finish(screen)
+
+    key(screen, pygame.K_s)
+    run_frames(screen, 30)
+
+    assert screen.session.is_solved()
+    assert screen.session.assisted
+    assert app.wins_announced == 1
+
+
+def test_solve_ignores_the_board_while_playing(app):
+    screen = PlayScreen(app, 3)
+    key(screen, pygame.K_s)
+    run_frames(screen, 0.1)
+
+    key(screen, pygame.K_1)
+
+    assert screen.held is None
+
+
+def test_pressing_s_again_stops_the_solver(app):
+    screen = PlayScreen(app, 5)
+    key(screen, pygame.K_s)
+    run_frames(screen, 0.5)
+
+    key(screen, pygame.K_s)  # Stop
+    run_frames(screen, 5)
+
+    assert not screen.is_solving
+    assert not screen.session.is_solved()
+    assert screen.session.move_count > 0
+
+
+def test_restart_works_while_solving(app):
+    screen = PlayScreen(app, 3)
+    key(screen, pygame.K_s)
+    run_frames(screen, 0.1)
+
+    key(screen, pygame.K_r)
+
+    assert app.started_with == 3
+
+
 # --- Drawing does not crash in any state --------------------------------------------------
 
 
@@ -280,6 +335,9 @@ def test_every_screen_state_can_be_drawn(app):
     screen.draw(surface)  # shaking after an illegal move
     key(screen, pygame.K_h)
     screen.draw(surface)  # showing a hint
+    key(screen, pygame.K_s)
+    run_frames(screen, 0.1)
+    screen.draw(surface)  # solving by itself
     MenuScreen(app).draw(surface)
 
 

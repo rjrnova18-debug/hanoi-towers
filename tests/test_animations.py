@@ -50,3 +50,10 @@ def test_shake_fades_out_and_finishes():
 
     assert shake.done
     assert shake.offset_x() == pytest.approx(0)
+
+
+def test_a_faster_flight_takes_less_time():
+    normal = Flight.between(disk=1, start=(160, 400), end=(800, 400))
+    twice_as_fast = Flight.between(disk=1, start=(160, 400), end=(800, 400), speed=2 * normal.speed)
+
+    assert twice_as_fast.duration == pytest.approx(normal.duration / 2)

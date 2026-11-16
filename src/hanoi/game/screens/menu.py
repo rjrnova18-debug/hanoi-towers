@@ -53,7 +53,9 @@ class MenuScreen(Screen):
                 config.MUTED_TEXT_COLOR,
             )
 
-        controls = "Drag or click the disks  ·  keys 1 2 3  ·  H hint  ·  U undo  ·  R restart"
+        controls = (
+            "Drag or click the disks  ·  keys 1 2 3  ·  H hint  ·  S solve  ·  U undo  ·  R restart"
+        )
         draw_text(surface, controls, fonts.small, (CENTER_X, 480), config.MUTED_TEXT_COLOR)
 
     def _best_text(self, disk_count: int) -> str:
