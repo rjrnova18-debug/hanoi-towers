@@ -83,6 +83,7 @@ BOUNCE_DURATION = 0.22  # seconds of the little hop when a disk lands
 BOUNCE_HEIGHT = 7  # pixels
 DRAG_THRESHOLD = 6  # pixels the pointer must travel before a click becomes a drag
 WIN_DELAY = 0.5  # seconds to admire the solved board before the win screen
+FADE_DURATION = 0.25  # seconds of the crossfade when the screen changes
 
 # Menu demo: a small game solving itself, back and forth, behind the menu
 MENU_DEMO_DISKS = 4

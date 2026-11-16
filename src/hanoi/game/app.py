@@ -1,6 +1,7 @@
 """The app: opens the window, owns what screens share, and runs the main loop.
 
 Every frame: read input -> update -> draw -> repeat. The current screen does the real work.
+When the screen changes, the last frame of the old one fades out on top of the new one.
 """
 
 import asyncio
@@ -28,14 +29,17 @@ class App:
         self.fonts = load_fonts()
         self.save = save or SaveData(FileBackend())
         self.screen: Screen = MenuScreen(self)
+        self.running = True
+        self.fading_frame: pygame.Surface | None = None  # last frame of the previous screen
+        self.fade_left = 0.0  # seconds until the fade is over
 
     # --- Switching screens (the screens call these) -----------------------------------
 
     def show_menu(self) -> None:
-        self.screen = MenuScreen(self)
+        self._switch_to(MenuScreen(self))
 
     def start_game(self, disk_count: int) -> None:
-        self.screen = PlayScreen(self, disk_count)
+        self._switch_to(PlayScreen(self, disk_count))
 
     def show_win(self, session: GameSession) -> None:
         """Save the result if it is a record, then show the win screen."""
@@ -43,24 +47,21 @@ class App:
         if result is None:
             return  # the game is not won: nothing to show
         is_new_record = self.save.submit(result)
-        self.screen = WinScreen(self, result, session.towers.position(), is_new_record)
+        self._switch_to(WinScreen(self, result, session.towers.position(), is_new_record))
+
+    def _switch_to(self, screen: Screen) -> None:
+        """Show a new screen, keeping a picture of the old one to fade it out."""
+        self.fading_frame = self.surface.copy()
+        self.fade_left = config.FADE_DURATION
+        self.screen = screen
 
     # --- Main loop ---------------------------------------------------------------------
 
     async def run(self) -> None:
         clock = pygame.time.Clock()
-        running = True
-        while running:
+        while self.running:
             dt = clock.tick(config.FPS) / 1000  # seconds since the last frame
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                else:
-                    self.screen.handle_event(event)
-
-            self.screen.update(dt)
-            self.screen.draw(self.surface)
+            self.step(pygame.event.get(), dt)
             pygame.display.flip()
 
             # In the browser the game shares a single thread with the page.
@@ -68,6 +69,29 @@ class App:
             await asyncio.sleep(0)
 
         pygame.quit()
+
+    def step(self, events: list[pygame.event.Event], dt: float) -> None:
+        """One frame: input, update, draw. Kept apart from run() so tests can drive frames."""
+        for event in events:
+            if event.type == pygame.QUIT:
+                self.running = False
+            else:
+                self.screen.handle_event(event)
+        self.screen.update(dt)
+        self.screen.draw(self.surface)
+        self._draw_fade(dt)
+
+    def _draw_fade(self, dt: float) -> None:
+        """Draw the old screen's last frame over the new one, more transparent every frame."""
+        if self.fading_frame is None:
+            return
+        self.fade_left -= dt
+        if self.fade_left <= 0:
+            self.fading_frame = None
+            return
+        opacity = self.fade_left / config.FADE_DURATION  # 1 = fully visible, 0 = gone
+        self.fading_frame.set_alpha(round(255 * opacity))
+        self.surface.blit(self.fading_frame, (0, 0))
 
 
 async def run() -> None:

@@ -493,3 +493,24 @@ def test_real_app_saves_the_record_and_opens_the_win_screen(tmp_path):
     assert isinstance(real_app.screen, WinScreen)
     assert real_app.screen.is_new_record
     assert real_app.save.best_record(3).moves == 7
+
+
+def test_changing_screen_fades_out_the_old_one(tmp_path):
+    real_app = App(save=SaveData(FileBackend(tmp_path / "save.json")))
+    real_app.step([], 1 / 60)  # draw the menu once
+
+    real_app.step([pygame.event.Event(pygame.KEYDOWN, key=pygame.K_3)], 1 / 60)
+
+    assert isinstance(real_app.screen, PlayScreen)
+    assert real_app.fading_frame is not None  # the menu is fading out
+    for _ in range(30):  # half a second
+        real_app.step([], 1 / 60)
+    assert real_app.fading_frame is None
+
+
+def test_closing_the_window_stops_the_loop(tmp_path):
+    real_app = App(save=SaveData(FileBackend(tmp_path / "save.json")))
+
+    real_app.step([pygame.event.Event(pygame.QUIT)], 1 / 60)
+
+    assert not real_app.running
