@@ -1,8 +1,16 @@
-"""The win screen: stars, moves, time and records, over the solved board."""
+"""The win screen: stars, moves, time and records, over the solved board.
+
+Earned stars pop in one by one, and an unassisted win throws confetti.
+"""
+
+import math
+import random
+from functools import cache
 
 import pygame
 
 from hanoi import config
+from hanoi.game.animations import ConfettiPiece, confetti_burst, pop_scale
 from hanoi.game.board_view import draw_board
 from hanoi.game.screens.base import AppServices, Screen
 from hanoi.game.widgets import (
@@ -32,6 +40,11 @@ class WinScreen(Screen):
         self.is_new_record = is_new_record
         self.has_next_level = result.disk_count < config.MAX_DISKS
         self.buttons = self._make_buttons()
+        self.elapsed = 0.0  # seconds since the screen appeared: drives the star animation
+        # Confetti celebrates a win earned without help.
+        self.confetti: list[ConfettiPiece] = (
+            [] if result.assisted else confetti_burst(random.Random(), config.DISK_COLORS)
+        )
 
     def _make_buttons(self) -> dict[str, Button]:
         # (name, label, key). "next" only exists below the maximum number of disks.
@@ -55,10 +68,17 @@ class WinScreen(Screen):
         elif self.buttons["menu"].is_pressed(event):
             self.app.show_menu()
 
+    def update(self, dt: float) -> None:
+        self.elapsed += dt
+        for piece in self.confetti:
+            piece.update(dt)
+        # Forget the pieces that already fell below the screen.
+        self.confetti = [piece for piece in self.confetti if piece.y < config.SCREEN_HEIGHT + 20]
+
     def draw(self, surface: pygame.Surface) -> None:
         draw_background(surface)
         draw_board(surface, self.final_position, self.result.disk_count)
-        self._dim(surface)
+        surface.blit(_dark_overlay(), (0, 0))
         pygame.draw.rect(surface, config.PANEL_COLOR, PANEL, border_radius=20)
 
         fonts = self.app.fonts
@@ -74,12 +94,7 @@ class WinScreen(Screen):
 
         for button in self.buttons.values():
             button.draw(surface, fonts.small)
-
-    def _dim(self, surface: pygame.Surface) -> None:
-        # A see-through black layer (alpha 160 of 255) pushes the board into the background.
-        shade = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        shade.fill((0, 0, 0, 160))
-        surface.blit(shade, (0, 0))
+        self._draw_confetti(surface)
 
     def _draw_stars_or_assisted(self, surface: pygame.Surface) -> None:
         y = PANEL.top + 115
@@ -93,7 +108,20 @@ class WinScreen(Screen):
             )
             return
         for index in range(3):
-            draw_star(surface, (CENTER_X + (index - 1) * 70, y), 28, index < self.result.stars)
+            center = (CENTER_X + (index - 1) * 70, y)
+            draw_star(surface, center, 28, filled=False)  # the empty slot is always there
+            if index < self.result.stars:
+                scale = pop_scale(self.elapsed, start=config.STAR_POP_DELAY * (index + 1))
+                if scale > 0:
+                    draw_star(surface, center, 28 * scale, filled=True)
+
+    def _draw_confetti(self, surface: pygame.Surface) -> None:
+        for piece in self.confetti:
+            # Width follows the flip angle, so the paper looks like it turns in the air.
+            width = max(1, round(piece.size * abs(math.cos(piece.angle))))
+            rect = pygame.Rect(0, 0, width, round(piece.size * 0.6))
+            rect.center = (round(piece.x), round(piece.y))
+            pygame.draw.rect(surface, piece.color, rect)
 
     def _record_line(self) -> tuple[str, tuple[int, int, int]]:
         if self.result.assisted:
@@ -102,3 +130,11 @@ class WinScreen(Screen):
             return "New record!", config.STAR_ON_COLOR
         best = self.app.save.best_record(self.result.disk_count)
         return f"best: {best.moves} moves · {format_time(best.seconds)}", config.MUTED_TEXT_COLOR
+
+
+@cache
+def _dark_overlay() -> pygame.Surface:
+    """A see-through black layer (alpha 160 of 255) that pushes the board into the background."""
+    shade = pygame.Surface((config.SCREEN_WIDTH, config.SCREEN_HEIGHT), pygame.SRCALPHA)
+    shade.fill((0, 0, 0, 160))
+    return shade

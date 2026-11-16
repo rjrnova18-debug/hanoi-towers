@@ -1,15 +1,16 @@
-"""Small animations: a disk flying to its tower, bouncing when it lands,
-and shaking after a mistake.
+"""Small animations: a disk flying, bouncing and shaking; stars popping in; confetti.
 
 Each animation only computes WHERE the disk is at a given moment.
 The screen calls update(dt) every frame and draws the disk at position().
 """
 
 import math
+import random
 from dataclasses import dataclass, field
 from itertools import pairwise
 
 from hanoi import config
+from hanoi.game.widgets import Color
 
 Point = tuple[float, float]
 
@@ -90,6 +91,66 @@ class Shake:
         progress = self.elapsed / config.SHAKE_DURATION
         wiggles = 4
         return config.SHAKE_AMPLITUDE * math.sin(progress * wiggles * 2 * math.pi) * (1 - progress)
+
+
+def pop_scale(elapsed: float, start: float) -> float:
+    """Size of something that pops in at time `start`: 0 before, then grows a bit past its
+    full size and settles back to 1, like a balloon inflating.
+    """
+    progress = (elapsed - start) / config.STAR_POP_DURATION
+    if progress <= 0:
+        return 0.0
+    if progress >= 1:
+        return 1.0
+    peak = config.STAR_POP_OVERSHOOT
+    if progress < 0.6:
+        return peak * progress / 0.6  # growing
+    return peak - (peak - 1) * (progress - 0.6) / 0.4  # settling back
+
+
+@dataclass
+class ConfettiPiece:
+    """One paper square: thrown up, slowed by the air, falling while it flips."""
+
+    x: float
+    y: float
+    speed_x: float
+    speed_y: float
+    color: Color
+    size: float
+    angle: float  # how far it has flipped; only used to draw it thinner or wider
+    spin: float
+
+    def update(self, dt: float) -> None:
+        self.speed_x -= self.speed_x * config.CONFETTI_AIR_DRAG * dt
+        self.speed_y = min(self.speed_y + config.CONFETTI_GRAVITY * dt, config.CONFETTI_MAX_FALL)
+        self.x += self.speed_x * dt
+        self.y += self.speed_y * dt
+        self.angle += self.spin * dt
+
+
+def confetti_burst(rng: random.Random, colors: list[Color]) -> list[ConfettiPiece]:
+    """Two cannons, one in each bottom corner, shooting up and towards the middle.
+
+    `rng` is passed in so tests can use a fixed seed and always get the same confetti.
+    """
+    pieces = []
+    for index in range(config.CONFETTI_COUNT):
+        from_left = index % 2 == 0
+        towards_middle = 1 if from_left else -1
+        pieces.append(
+            ConfettiPiece(
+                x=0 if from_left else config.SCREEN_WIDTH,
+                y=config.SCREEN_HEIGHT,
+                speed_x=towards_middle * rng.uniform(250, 950),  # air drag stops it ~v/1.5 px later
+                speed_y=rng.uniform(-1000, -450),  # negative = up
+                color=rng.choice(colors),
+                size=rng.uniform(6, 11),
+                angle=rng.uniform(0, math.tau),
+                spin=rng.uniform(-12, 12),
+            )
+        )
+    return pieces
 
 
 def ease_in_out(progress: float) -> float:

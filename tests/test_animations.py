@@ -1,9 +1,19 @@
 """Tests for the animations (game/animations.py)."""
 
+import random
+
 import pytest
 
 from hanoi import config
-from hanoi.game.animations import Bounce, Flight, Shake, ease_in_out, point_along_path
+from hanoi.game.animations import (
+    Bounce,
+    Flight,
+    Shake,
+    confetti_burst,
+    ease_in_out,
+    point_along_path,
+    pop_scale,
+)
 
 
 def test_point_along_path_walks_by_distance():
@@ -76,3 +86,37 @@ def test_bounce_hops_up_then_settles():
 
     assert bounce.done
     assert bounce.offset_y() == pytest.approx(0)
+
+
+def test_pop_scale_waits_grows_past_full_size_and_settles():
+    start = 1.0
+
+    assert pop_scale(0.5, start) == 0  # not its turn yet
+    sizes = [pop_scale(start + config.STAR_POP_DURATION * f, start) for f in (0.3, 0.6, 0.8)]
+    assert sizes[0] < sizes[1]  # growing
+    assert sizes[1] == pytest.approx(config.STAR_POP_OVERSHOOT)  # the peak
+    assert 1 < sizes[2] < sizes[1]  # settling back
+    assert pop_scale(start + 5, start) == 1
+
+
+def test_confetti_is_the_same_with_the_same_seed():
+    colors = [(255, 0, 0), (0, 0, 255)]
+
+    first = confetti_burst(random.Random(42), colors)
+    second = confetti_burst(random.Random(42), colors)
+
+    assert first == second
+    assert len(first) == config.CONFETTI_COUNT
+
+
+def test_confetti_flies_up_then_falls_down():
+    piece = confetti_burst(random.Random(1), [(255, 0, 0)])[0]
+    start_y = piece.y
+
+    for _ in range(20):  # a third of a second: still going up
+        piece.update(1 / 60)
+    assert piece.y < start_y
+
+    for _ in range(600):  # ten seconds: long gone below the screen
+        piece.update(1 / 60)
+    assert piece.y > config.SCREEN_HEIGHT

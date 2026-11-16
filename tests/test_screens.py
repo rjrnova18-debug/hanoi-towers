@@ -440,7 +440,28 @@ def test_win_screen_can_be_drawn(app, result):
     app.save.submit(a_win())  # so a "best" line exists
     surface = pygame.Surface((config.SCREEN_WIDTH, config.SCREEN_HEIGHT))
 
-    WinScreen(app, result, solved_board(3), is_new_record=False).draw(surface)
+    win = WinScreen(app, result, solved_board(3), is_new_record=False)
+    win.draw(surface)  # first frame: no stars yet
+    for _ in range(30):
+        win.update(1 / 60)
+    win.draw(surface)  # stars popping, confetti flying
+
+
+def test_only_a_win_without_help_throws_confetti(app):
+    earned = WinScreen(app, a_win(), solved_board(3), is_new_record=True)
+    helped = WinScreen(app, a_win(assisted=True, stars=0), solved_board(3), is_new_record=False)
+
+    assert earned.confetti
+    assert not helped.confetti
+
+
+def test_confetti_is_cleaned_up_once_it_falls_off_screen(app):
+    win = WinScreen(app, a_win(), solved_board(3), is_new_record=True)
+
+    for _ in range(60 * 10):
+        win.update(1 / 60)
+
+    assert win.confetti == []
 
 
 def test_real_app_saves_the_record_and_opens_the_win_screen(tmp_path):

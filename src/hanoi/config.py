@@ -84,6 +84,15 @@ BOUNCE_HEIGHT = 7  # pixels
 DRAG_THRESHOLD = 6  # pixels the pointer must travel before a click becomes a drag
 WIN_DELAY = 0.5  # seconds to admire the solved board before the win screen
 
+# Win celebration
+STAR_POP_DELAY = 0.3  # seconds between one star popping in and the next
+STAR_POP_DURATION = 0.35
+STAR_POP_OVERSHOOT = 1.3  # a popping star grows to 130 % before settling at 100 %
+CONFETTI_COUNT = 140
+CONFETTI_GRAVITY = 1400  # pixels per second, added to the falling speed every second
+CONFETTI_MAX_FALL = 220  # paper falls slowly: it never goes faster than this
+CONFETTI_AIR_DRAG = 1.5  # how quickly the sideways speed fades
+
 # Solve button: a game of n disks needs 2^n - 1 moves (255 for 8 disks), so bigger games
 # are played faster. Speed = FLIGHT_SPEED x (1 + SOLVE_SPEEDUP_PER_DISK x extra disks).
 SOLVE_SPEEDUP_PER_DISK = 0.5  # 3 disks: normal speed ... 8 disks: 3.5 times faster
