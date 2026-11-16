@@ -1,7 +1,10 @@
-# CI = Continuous Integration: every push is checked automatically on a clean machine.
+# CI/CD for the game:
+# - CI (Continuous Integration): every push and pull request is checked on a clean machine.
+# - CD (Continuous Deployment): every push to main that passes the checks is published
+#   as a playable web page on GitHub Pages.
 # GitHub reads every .yml file inside .github/workflows/ and runs it when its trigger happens.
 
-name: CI # the name shown in the repo's "Actions" tab
+name: CI/CD # the name shown in the repo's "Actions" tab
 
 # WHEN to run (the trigger, or "event")
 on:
@@ -9,7 +12,16 @@ on:
     branches: [main] # every push to main
   pull_request: # every pull request, before it is merged
 
-# WHAT to run: a workflow has one or more jobs
+# What the automatic token (GITHUB_TOKEN) may do. Start with the minimum: read the code.
+# A job that needs more asks for it itself (see "deploy").
+permissions:
+  contents: read
+
+# WHAT to run: three jobs, chained with "needs:" so each one waits for the previous one.
+#
+#   lint-and-test  ──►  build-web  ──►  deploy
+#   (every push/PR)     (only pushes to main)
+#
 jobs:
   lint-and-test:
     # A fresh Linux virtual machine (a "runner") lent by GitHub. It starts empty every time.
@@ -38,3 +50,58 @@ jobs:
 
       - name: Test
         run: pytest
+
+  build-web:
+    # Only start if lint-and-test passed: broken code is never published.
+    needs: lint-and-test
+    # A pull request is only checked, never published: publishing waits for the merge to main.
+    if: github.event_name == 'push'
+    # Each job gets its OWN new runner: nothing from lint-and-test is here, so set up again.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install pygbag
+        run: pip install -r requirements-dev.txt
+
+      # pygbag packs src/ into a web page (index.html + the game) in src/build/web/.
+      - name: Build the web version
+        run: python -m pygbag --build --title "Tower of Hanoi" src
+
+      # Runners are thrown away when a job ends. An "artifact" is a file the workflow keeps,
+      # so the next job (on another runner) can use it. This action packs the folder in the
+      # format GitHub Pages expects.
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: src/build/web
+
+  deploy:
+    needs: build-web
+    runs-on: ubuntu-latest
+
+    # This job needs more than reading code:
+    permissions:
+      pages: write # publish to GitHub Pages
+      id-token: write # prove to Pages that this deployment really comes from this repo
+
+    # An "environment" is a named deployment target. GitHub lists each deployment to it
+    # (with this URL) on the repo's main page, under "Deployments".
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # If two pushes arrive close together, publish them one after the other, and never
+    # cancel a deployment halfway (that could leave a half-published site).
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    steps:
+      # Takes the artifact uploaded by build-web and publishes it. "id" lets the
+      # environment above read this step's output: the address of the published page.
+      - id: deployment
+        uses: actions/deploy-pages@v5
