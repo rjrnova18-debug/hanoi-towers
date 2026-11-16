@@ -24,12 +24,12 @@ class Fonts:
 
 
 def load_fonts() -> Fonts:
-    """pygame's built-in font: no font files to ship, works the same on PC and browser."""
+    """Fredoka (SIL Open Font License, see src/assets/fonts/OFL.txt): rounded and friendly."""
     return Fonts(
-        title=pygame.font.Font(None, 76),
-        large=pygame.font.Font(None, 46),
-        normal=pygame.font.Font(None, 32),
-        small=pygame.font.Font(None, 24),
+        title=pygame.font.Font(config.FONT_BOLD, 64),
+        large=pygame.font.Font(config.FONT_BOLD, 38),
+        normal=pygame.font.Font(config.FONT_REGULAR, 26),
+        small=pygame.font.Font(config.FONT_REGULAR, 19),
     )
 
 

@@ -5,3 +5,4 @@
 # Binary files: never touch their bytes.
 *.ogg binary
 *.png binary
+*.ttf binary

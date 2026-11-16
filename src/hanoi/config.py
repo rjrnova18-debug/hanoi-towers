@@ -4,7 +4,14 @@ To change how the game looks or feels, edit this file, not the drawing code.
 Sizes are in "logical pixels": the drawing always assumes a 960 x 540 screen.
 """
 
+from pathlib import Path
+
 WINDOW_TITLE = "Tower of Hanoi"
+
+# src/assets/: fonts and sounds that travel with the game (also to the browser).
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+FONT_REGULAR = ASSETS_DIR / "fonts" / "Fredoka-Medium.ttf"
+FONT_BOLD = ASSETS_DIR / "fonts" / "Fredoka-SemiBold.ttf"
 
 # Logical resolution. pygame.SCALED stretches it to fit any window or phone screen,
 # so the drawing code can always assume this exact size.
