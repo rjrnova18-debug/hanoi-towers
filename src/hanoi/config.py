@@ -84,7 +84,15 @@ BOUNCE_HEIGHT = 7  # pixels
 DRAG_THRESHOLD = 6  # pixels the pointer must travel before a click becomes a drag
 WIN_DELAY = 0.5  # seconds to admire the solved board before the win screen
 
+# Menu demo: a small game solving itself, back and forth, behind the menu
+MENU_DEMO_DISKS = 4
+MENU_DEMO_SPEED = 900  # pixels per second: calmer than a real move
+MENU_DEMO_PAUSE = 0.25  # seconds between two demo moves
+MENU_DEMO_REST = 1.5  # seconds to rest once the tower is complete
+MENU_OVERLAY_ALPHA = 185  # how much the demo is darkened (0-255)
+
 # Win celebration
+WIN_OVERLAY_ALPHA = 160  # how much the solved board is darkened behind the panel
 STAR_POP_DELAY = 0.3  # seconds between one star popping in and the next
 STAR_POP_DURATION = 0.35
 STAR_POP_OVERSHOOT = 1.3  # a popping star grows to 130 % before settling at 100 %

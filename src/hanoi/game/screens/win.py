@@ -5,7 +5,6 @@ Earned stars pop in one by one, and an unassisted win throws confetti.
 
 import math
 import random
-from functools import cache
 
 import pygame
 
@@ -17,6 +16,7 @@ from hanoi.game.widgets import (
     Button,
     button_row_centers,
     draw_background,
+    draw_dark_overlay,
     draw_star,
     draw_text,
     format_time,
@@ -78,7 +78,7 @@ class WinScreen(Screen):
     def draw(self, surface: pygame.Surface) -> None:
         draw_background(surface)
         draw_board(surface, self.final_position, self.result.disk_count)
-        surface.blit(_dark_overlay(), (0, 0))
+        draw_dark_overlay(surface, config.WIN_OVERLAY_ALPHA)
         pygame.draw.rect(surface, config.PANEL_COLOR, PANEL, border_radius=20)
 
         fonts = self.app.fonts
@@ -130,11 +130,3 @@ class WinScreen(Screen):
             return "New record!", config.STAR_ON_COLOR
         best = self.app.save.best_record(self.result.disk_count)
         return f"best: {best.moves} moves · {format_time(best.seconds)}", config.MUTED_TEXT_COLOR
-
-
-@cache
-def _dark_overlay() -> pygame.Surface:
-    """A see-through black layer (alpha 160 of 255) that pushes the board into the background."""
-    shade = pygame.Surface((config.SCREEN_WIDTH, config.SCREEN_HEIGHT), pygame.SRCALPHA)
-    shade.fill((0, 0, 0, 160))
-    return shade

@@ -6,7 +6,7 @@ import pytest
 from hanoi import config
 from hanoi.game.app import App
 from hanoi.game.board_view import tower_center_x
-from hanoi.game.screens.menu import MenuScreen
+from hanoi.game.screens.menu import DemoBoard, MenuScreen
 from hanoi.game.screens.play import PlayScreen
 from hanoi.game.screens.win import WinScreen
 from hanoi.game.widgets import format_time, load_fonts
@@ -95,6 +95,23 @@ def test_menu_button_click_starts_a_game(app):
     mouse_down(menu, *button.rect.center)
 
     assert app.started_with == config.MAX_DISKS
+
+
+def test_menu_demo_solves_back_and_forth_forever():
+    demo = DemoBoard()
+    disk_count = config.MENU_DEMO_DISKS
+    full_tower = tuple(range(disk_count, 0, -1))
+    seen = []
+
+    for _ in range(60 * 120):  # two minutes of frames (about 20 s per trip)
+        demo.update(1 / 60)
+        position = demo.towers.position()
+        if position[C] == full_tower and (not seen or seen[-1] != "C"):
+            seen.append("C")
+        if position[A] == full_tower and seen and seen[-1] != "A":
+            seen.append("A")
+
+    assert seen[:3] == ["C", "A", "C"]
 
 
 # --- Three ways to make the same move ------------------------------------------------------

@@ -46,6 +46,18 @@ def _background_gradient() -> pygame.Surface:
     return gradient
 
 
+def draw_dark_overlay(surface: pygame.Surface, alpha: int) -> None:
+    """Cover the screen with see-through black (alpha 0-255) to push it into the background."""
+    surface.blit(_dark_layer(alpha), (0, 0))
+
+
+@cache
+def _dark_layer(alpha: int) -> pygame.Surface:
+    layer = pygame.Surface((config.SCREEN_WIDTH, config.SCREEN_HEIGHT), pygame.SRCALPHA)
+    layer.fill((0, 0, 0, alpha))
+    return layer
+
+
 @dataclass(frozen=True)
 class Fonts:
     """The four text sizes used by the game."""
