@@ -1,16 +1,49 @@
-"""Reusable pieces of the interface: fonts, text, buttons and stars.
+"""Reusable pieces of the interface: colors, background, fonts, text, buttons and stars.
 
 Every screen uses them, so they live here instead of being copied into each screen.
 """
 
 import math
 from dataclasses import dataclass
+from functools import cache
 
 import pygame
 
 from hanoi import config
 
 Point = tuple[float, float]
+Color = tuple[int, int, int]
+
+BLACK: Color = (0, 0, 0)
+WHITE: Color = (255, 255, 255)
+
+
+def blend(color: Color, other: Color, amount: float) -> Color:
+    """Mix two colors: amount 0 gives `color`, 1 gives `other`, 0.5 is halfway.
+
+    blend(red, WHITE, 0.4) is a lighter red; blend(red, BLACK, 0.3) a darker one.
+    """
+    return (
+        round(color[0] + (other[0] - color[0]) * amount),
+        round(color[1] + (other[1] - color[1]) * amount),
+        round(color[2] + (other[2] - color[2]) * amount),
+    )
+
+
+def draw_background(surface: pygame.Surface) -> None:
+    """A vertical gradient: night blue at the top, almost black at the bottom."""
+    surface.blit(_background_gradient(), (0, 0))
+
+
+@cache  # the gradient never changes: paint it once, reuse it every frame
+def _background_gradient() -> pygame.Surface:
+    gradient = pygame.Surface((config.SCREEN_WIDTH, config.SCREEN_HEIGHT))
+    for y in range(config.SCREEN_HEIGHT):
+        color = blend(
+            config.BACKGROUND_TOP_COLOR, config.BACKGROUND_BOTTOM_COLOR, y / config.SCREEN_HEIGHT
+        )
+        pygame.draw.line(gradient, color, (0, y), (config.SCREEN_WIDTH, y))
+    return gradient
 
 
 @dataclass(frozen=True)
@@ -38,7 +71,7 @@ def draw_text(
     text: str,
     font: pygame.font.Font,
     center: Point,
-    color: tuple[int, int, int] = config.TEXT_COLOR,
+    color: Color = config.TEXT_COLOR,
 ) -> None:
     image = font.render(text, True, color)
     surface.blit(image, image.get_rect(center=(round(center[0]), round(center[1]))))

@@ -21,7 +21,7 @@ from hanoi.game.board_view import (
     tower_at,
 )
 from hanoi.game.screens.base import AppServices, Screen
-from hanoi.game.widgets import Button, button_row_centers, draw_text, format_time
+from hanoi.game.widgets import Button, button_row_centers, draw_background, draw_text, format_time
 from hanoi.logic.rules import Move, minimum_moves
 from hanoi.logic.session import GameSession
 
@@ -235,7 +235,7 @@ class PlayScreen(Screen):
 
     def draw(self, surface: pygame.Surface) -> None:
         position = self.session.towers.position()
-        surface.fill(config.BACKGROUND_COLOR)
+        draw_background(surface)
         self._draw_score_bar(surface)
         draw_board(
             surface,

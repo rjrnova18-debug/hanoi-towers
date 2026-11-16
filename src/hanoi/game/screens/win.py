@@ -5,7 +5,14 @@ import pygame
 from hanoi import config
 from hanoi.game.board_view import draw_board
 from hanoi.game.screens.base import AppServices, Screen
-from hanoi.game.widgets import Button, button_row_centers, draw_star, draw_text, format_time
+from hanoi.game.widgets import (
+    Button,
+    button_row_centers,
+    draw_background,
+    draw_star,
+    draw_text,
+    format_time,
+)
 from hanoi.logic.rules import Position, minimum_moves
 from hanoi.logic.session import GameResult
 
@@ -49,7 +56,7 @@ class WinScreen(Screen):
             self.app.show_menu()
 
     def draw(self, surface: pygame.Surface) -> None:
-        surface.fill(config.BACKGROUND_COLOR)
+        draw_background(surface)
         draw_board(surface, self.final_position, self.result.disk_count)
         self._dim(surface)
         pygame.draw.rect(surface, config.PANEL_COLOR, PANEL, border_radius=20)

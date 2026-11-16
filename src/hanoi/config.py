@@ -34,6 +34,11 @@ PEG_WIDTH = 10
 PEG_HEIGHT = 265
 DISK_HEIGHT = 28
 DISK_GAP = 3  # visible space between stacked disks
+DISK_EDGE = 4  # darker strip at the bottom of each disk: makes it look round
+SHADOW_OFFSET = 5  # how far below a disk its shadow falls
+SHADOW_ALPHA = 90  # 0 = invisible, 255 = solid black
+REFLECTION_ALPHA = 70  # the faint copy of the bottom disks under the base...
+REFLECTION_HEIGHT = 12  # ...fades out over this many pixels
 DISK_MIN_WIDTH = 64
 DISK_MAX_WIDTH = 290
 LIFT_Y = 140  # height where a picked-up disk floats
@@ -41,7 +46,8 @@ HINT_ARROW_Y = 112  # height of the hint arrow, between the score bar and a lift
 
 # --- Colors (R, G, B) ----------------------------------------------------------------
 
-BACKGROUND_COLOR = (24, 26, 38)
+BACKGROUND_TOP_COLOR = (34, 38, 62)  # the background is a gradient from top to bottom
+BACKGROUND_BOTTOM_COLOR = (13, 14, 22)
 PANEL_COLOR = (36, 39, 56)
 PEG_COLOR = (70, 75, 100)
 TEXT_COLOR = (230, 232, 240)

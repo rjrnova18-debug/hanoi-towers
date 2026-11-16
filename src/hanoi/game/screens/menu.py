@@ -4,7 +4,7 @@ import pygame
 
 from hanoi import config
 from hanoi.game.screens.base import AppServices, Screen
-from hanoi.game.widgets import Button, draw_text, format_time
+from hanoi.game.widgets import Button, draw_background, draw_text, format_time
 
 BUTTON_ROW_Y = 300
 BUTTON_SPACING = 130
@@ -35,7 +35,7 @@ class MenuScreen(Screen):
 
     def draw(self, surface: pygame.Surface) -> None:
         fonts = self.app.fonts
-        surface.fill(config.BACKGROUND_COLOR)
+        draw_background(surface)
 
         draw_text(surface, config.WINDOW_TITLE, fonts.title, (CENTER_X, 110))
         rules = "Move every disk to the right tower. A disk never sits on a smaller one."
