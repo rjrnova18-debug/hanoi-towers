@@ -1,10 +1,12 @@
 # Tower of Hanoi
 
-[![CI](https://github.com/rjrnova18-debug/hanoi-towers/actions/workflows/ci.yml/badge.svg)](https://github.com/rjrnova18-debug/hanoi-towers/actions/workflows/ci.yml)
+[![CI/CD](https://github.com/rjrnova18-debug/hanoi-towers/actions/workflows/ci.yml/badge.svg)](https://github.com/rjrnova18-debug/hanoi-towers/actions/workflows/ci.yml)
 
 > 🚧 Work in progress.
 
-A Tower of Hanoi game made with **pygame-ce**. It gives hints and solves the puzzle from **any** position, and it will be playable in the browser.
+A Tower of Hanoi game made with **pygame-ce**. It gives hints and solves the puzzle from **any** position.
+
+**▶ Play it in your browser:** https://rjrnova18-debug.github.io/hanoi-towers/ (click once to start; it also works on a phone).
 
 It started as one of my first Python scripts, which had a bug. This repo rewrites it into a tested, playable game. The original script is kept untouched in [`legacy/`](legacy/hanoi_og_code.py).
 
@@ -15,6 +17,12 @@ python -m venv venv
 source venv/Scripts/activate      # Windows (Git Bash). On macOS/Linux: source venv/bin/activate
 pip install -r requirements-dev.txt
 python src/main.py
+```
+
+The web version, built with [pygbag](https://github.com/pygame-web/pygbag) (the same build that GitHub Actions publishes):
+
+```bash
+python -m pygbag src             # then open http://localhost:8000
 ```
 
 Tests and lint:
